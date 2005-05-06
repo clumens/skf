@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.3 2005/05/06 02:57:01 chris Exp $ */
+/* $Id: skf.c,v 1.4 2005/05/06 04:08:51 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -23,6 +23,9 @@
 #include "draw.h"
 #include "skf.h"
 
+/* Types for user-defined events. */
+#define USER_EVT_DROP   0
+
 /* Get the best color depth we have available. */
 Uint32 __inline__ best_color_depth()
 {
@@ -45,22 +48,36 @@ unsigned int __inline__ have_wm()
       return 0;
 }
 
-void test_draw (SDL_Surface *screen)
+/* Draw one line of boxes on the specified row. */
+void test_draw (SDL_Surface *screen, unsigned int *on_row)
 {
-   unsigned int x, y;
-   Uint8 R = 0x00, G = 0x00, B = 0x00;
+   unsigned int x;
 
-   for (y = 0; y < Y_BLOCKS; y++)
-   {
-      B = (y % 2 == 0) ? 0x00 : 0xff;
+   for (x = 0; x < X_BLOCKS; x++)
+      draw_block (screen, x*BLOCK_SIZE, (*on_row)*BLOCK_SIZE, 0x00, 0xff, 0xff);
 
-      for (x = 0; x < X_BLOCKS; x++)
-      {
-         R = (x % 2 == 0) ? 0x00 : 0xff;
-         G = (x % 2 == 1) ? 0x00 : 0xff;
-         draw_block (screen, x*BLOCK_SIZE, y*BLOCK_SIZE, R, G, B);
-      }
-   }
+   (*on_row)++;
+
+   if (*on_row >= Y_BLOCKS)
+      *on_row = 0;
+}
+
+/* Callback function for timer - just put an event into the queue and later,
+ * it will be processed to do the drawing.  We're not supposed to call functions
+ * from within the callback (stupid interrupt handler model).
+ */
+Uint32 drop_timer_cb (Uint32 interval, void *params)
+{
+   SDL_Event evt;
+
+   evt.type = SDL_USEREVENT;
+   evt.user.code = USER_EVT_DROP;
+   evt.user.data1 = NULL;
+   evt.user.data2 = NULL;
+   SDL_PushEvent (&evt);
+
+   /* Return the interval so we know to reschedule the timer. */
+   return interval;
 }
 
 int main (int argc, char **argv)
@@ -68,7 +85,9 @@ int main (int argc, char **argv)
    SDL_Surface *screen;
    SDL_Event evt;
 
-   if (SDL_Init (SDL_INIT_VIDEO) < 0)
+   unsigned int on_row = 0;
+
+   if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0)
    {
       fprintf (stderr, "unable to init SDL:  %s\n", SDL_GetError());
       exit(1);
@@ -86,12 +105,29 @@ int main (int argc, char **argv)
    }
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050505", "skf");
 
-   test_draw(screen);
+   /* Set up a callback to add to the playing field every so often. */
+   if (SDL_AddTimer (1000, drop_timer_cb, NULL) == NULL)
+   {
+      fprintf (stderr, "Unable to set up timer callback: %s\n", SDL_GetError());
+      exit(1);
+   }
 
    do {
       SDL_WaitEvent (&evt);
+
+      switch (evt.type) {
+         case SDL_USEREVENT:
+            if (evt.user.code == USER_EVT_DROP)
+               test_draw (screen, &on_row);
+            else
+               fprintf (stderr, "got unknown user event type\n");
+            break;
+
+         default:
+            break;
+      }
    } while (evt.type != SDL_QUIT);
 
    return 0;
