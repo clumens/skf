@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.1 2005/05/06 01:28:56 chris Exp $ */
+/* $Id: skf.c,v 1.1.1.1 2005/05/06 01:28:56 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
