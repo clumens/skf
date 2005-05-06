@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 2005/05/06 02:38:06 chris Exp $
+# $Id: Makefile,v 1.3 2005/05/06 04:06:17 chris Exp $
 
 CC = gcc
 CFLAGS = -O2 -Wall `sdl-config --cflags`
@@ -12,7 +12,7 @@ skf: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean:
-	-rm core skf *.o
+	-rm core* skf *.o
 
 #####################################################################
 # Dependancies                                                      #
