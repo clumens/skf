@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.2 2005/05/06 02:38:07 chris Exp $ */
+/* $Id: skf.c,v 1.3 2005/05/06 02:57:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -23,7 +23,8 @@
 #include "draw.h"
 #include "skf.h"
 
-Uint32 best_color_depth()
+/* Get the best color depth we have available. */
+Uint32 __inline__ best_color_depth()
 {
    const SDL_VideoInfo *info = SDL_GetVideoInfo();
 
@@ -33,14 +34,32 @@ Uint32 best_color_depth()
       return 8;
 }
 
+/* Is there a window manager? */
+unsigned int __inline__ have_wm()
+{
+   const SDL_VideoInfo *info = SDL_GetVideoInfo();
+
+   if (info != NULL)
+      return info->wm_available;
+   else
+      return 0;
+}
+
 void test_draw (SDL_Surface *screen)
 {
    unsigned int x, y;
+   Uint8 R = 0x00, G = 0x00, B = 0x00;
 
    for (y = 0; y < Y_BLOCKS; y++)
    {
+      B = (y % 2 == 0) ? 0x00 : 0xff;
+
       for (x = 0; x < X_BLOCKS; x++)
-         draw_block (screen, x*BLOCK_SIZE, y*BLOCK_SIZE);
+      {
+         R = (x % 2 == 0) ? 0x00 : 0xff;
+         G = (x % 2 == 1) ? 0x00 : 0xff;
+         draw_block (screen, x*BLOCK_SIZE, y*BLOCK_SIZE, R, G, B);
+      }
    }
 }
 
@@ -66,7 +85,8 @@ int main (int argc, char **argv)
       exit(1);
    }
 
-   SDL_WM_SetCaption("shit keeps falling", "skf");
+   if (have_wm())
+      SDL_WM_SetCaption("shit keeps falling", "skf");
 
    test_draw(screen);
 

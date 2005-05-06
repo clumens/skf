@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.1 2005/05/06 02:38:06 chris Exp $ */
+/* $Id: draw.c,v 1.2 2005/05/06 02:57:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -29,7 +29,8 @@ static void __inline__ draw_pixel (SDL_Surface *screen, Uint8 R, Uint8 G,
 }
 
 /* Draw one block. */
-void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y)
+void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
+                 Uint8 R, Uint8 G, Uint8 B)
 {
    unsigned int x, y;
 
@@ -44,7 +45,7 @@ void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y)
    for (y = 0; y < BLOCK_SIZE; y++)
    {
       for (x = 0; x < BLOCK_SIZE; x++)
-         draw_pixel (screen, 0xff, 0x00, 0x00, base_x+x, base_y+y);
+         draw_pixel (screen, R, G, B, base_x+x, base_y+y);
    }
 
    /* Give up the lock. */
