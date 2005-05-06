@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.2 2005/05/06 02:57:01 chris Exp $ */
+/* $Id: draw.h,v 1.3 2005/05/06 04:07:06 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -16,7 +16,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#ifndef _DRAW_H
+#define _DRAW_H 1
+
 #include <SDL/SDL.h>
 
 void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
                  Uint8 R, Uint8 G, Uint8 B);
+
+#endif

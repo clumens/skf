@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.1 2005/05/06 02:38:07 chris Exp $ */
+/* $Id: skf.h,v 1.2 2005/05/06 04:07:06 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -16,6 +16,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#ifndef _SKF_H
+#define _SKF_H 1
+
 #define BLOCK_SIZE   30
 #define X_BLOCKS     15
 #define Y_BLOCKS     20
@@ -27,3 +30,5 @@
 /* Size of the entire window we want to draw. */
 #define SKF_XRES  SKF_FIELD_XRES
 #define SKF_YRES  SKF_FIELD_YRES
+
+#endif
