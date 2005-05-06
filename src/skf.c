@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.1 2005/05/06 01:28:56 chris Exp $ */
+/* $Id: skf.c,v 1.2 2005/05/06 02:38:07 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -20,6 +20,30 @@
 #include <stdlib.h>
 #include <SDL/SDL.h>
 
+#include "draw.h"
+#include "skf.h"
+
+Uint32 best_color_depth()
+{
+   const SDL_VideoInfo *info = SDL_GetVideoInfo();
+
+   if (info != NULL)
+      return info->vfmt->BitsPerPixel;
+   else
+      return 8;
+}
+
+void test_draw (SDL_Surface *screen)
+{
+   unsigned int x, y;
+
+   for (y = 0; y < Y_BLOCKS; y++)
+   {
+      for (x = 0; x < X_BLOCKS; x++)
+         draw_block (screen, x*BLOCK_SIZE, y*BLOCK_SIZE);
+   }
+}
+
 int main (int argc, char **argv)
 {
    SDL_Surface *screen;
@@ -33,13 +57,18 @@ int main (int argc, char **argv)
 
    atexit (SDL_Quit);
 
-   screen = SDL_SetVideoMode (640, 480, 32, SDL_HWSURFACE|SDL_DOUBLEBUF);
+   screen = SDL_SetVideoMode (SKF_XRES, SKF_YRES, best_color_depth(),
+                              SDL_HWSURFACE|SDL_DOUBLEBUF);
 
    if (screen == NULL)
    {
       fprintf (stderr, "Unable to set 640x480 video: %s\n", SDL_GetError());
       exit(1);
    }
+
+   SDL_WM_SetCaption("shit keeps falling", "skf");
+
+   test_draw(screen);
 
    do {
       SDL_WaitEvent (&evt);
