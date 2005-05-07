@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.6 2005/05/07 18:37:22 chris Exp $ */
+/* $Id: skf.c,v 1.7 2005/05/07 23:19:22 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -26,6 +26,10 @@
 /* Types for user-defined events. */
 #define USER_EVT_DROP   0
 
+/* A representation of the playing field so we can easily tell if there's
+ * something in that space or not.  This is better than relying on whatever
+ * we happened to draw there.
+ */
 unsigned int field[X_BLOCKS][Y_BLOCKS];
 
 /* Get the best color depth we have available. */
@@ -50,41 +54,60 @@ unsigned int __inline__ have_wm()
       return 0;
 }
 
-/* Draw one block on the specified row. */
-void test_draw (SDL_Surface *screen, unsigned int *x, unsigned int *y)
+/* Is there anything underneath the block starting at (x, y)? */
+unsigned int __inline__ landed (unsigned int x, unsigned int y)
+{
+   if (y == Y_BLOCKS-2 || field[x][y+2] == 1 || field[x+1][y+2] == 1)
+      return 1;
+   else
+      return 0;
+}
+
+/* Update the position of the currently dropping block on the playing field. */
+void update_field (SDL_Surface *screen, int dx, int dy, int *x, int *y)
 {
    /* If the entire screen is now full, the game is over. */
-   if (field[0][0] == 1)
+   if (landed (*x, 0))
    {
       fprintf (stderr, "game over\n");
       exit(0);
    }
 
-   /* Draw the new block. */
+   /* Erase the previous position of the block. */
+   if (*y > 0)
+   {
+      erase_block (screen, (*x)*BLOCK_SIZE, (*y)*BLOCK_SIZE);
+      erase_block (screen, (*x+1)*BLOCK_SIZE, (*y)*BLOCK_SIZE);
+      erase_block (screen, (*x)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE);
+      erase_block (screen, (*x+1)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE);
+   }
+
+   /* Update position, making sure the new position makes sense. */
+   *x += dx;
+   *y += dy;
+
+   if (*x < 0)
+      *x = 0;
+   else if (*x > X_BLOCKS-2)
+      *x = X_BLOCKS-2;
+
+   /* Draw the block in its new position. */
    draw_block (screen, (*x)*BLOCK_SIZE, (*y)*BLOCK_SIZE, 0, 0xff, 0xff);
    draw_block (screen, (*x+1)*BLOCK_SIZE, (*y)*BLOCK_SIZE, 0, 0xff, 0xff);
    draw_block (screen, (*x)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE, 0, 0xff, 0xff);
    draw_block (screen, (*x+1)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE, 0, 0xff, 0xff);
 
-   /* Erase the spaces where the block used to be. */
-   if (*y > 0)
-   {
-      draw_block (screen, (*x)*BLOCK_SIZE, (*y-1)*BLOCK_SIZE, 0, 0, 0);
-      draw_block (screen, (*x+1)*BLOCK_SIZE, (*y-1)*BLOCK_SIZE, 0, 0, 0);
-   }
-
-   /* If this is the last free row, reset to start dropping from the top. */
-   if (*y == Y_BLOCKS-2 || field[*x][*y+2] == 1)
+   /* If the block landed somewhere, reset for dropping the next one. */
+   if (landed (*x, *y))
    {
       field[*x][*y] = 1;
       field[*x+1][*y] = 1;
       field[*x][*y+1] = 1;
       field[*x+1][*y+1] = 1;
       *y = 0;
+      *x = X_BLOCKS / 2;
       return;
    }
-
-   (*y)++;
 }
 
 void init_field ()
@@ -121,7 +144,7 @@ int main (int argc, char **argv)
    SDL_Surface *screen;
    SDL_Event evt;
 
-   unsigned int block_x = 0, block_y = 0;
+   int block_x = X_BLOCKS / 2, block_y = 0;
 
    if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0)
    {
@@ -136,7 +159,7 @@ int main (int argc, char **argv)
 
    if (screen == NULL)
    {
-      fprintf (stderr, "Unable to set 640x480 video: %s\n", SDL_GetError());
+      fprintf (stderr, "Unable to set video mode: %s\n", SDL_GetError());
       exit(1);
    }
 
@@ -145,7 +168,7 @@ int main (int argc, char **argv)
 
    init_field();
 
-   /* Set up a callback to add to the playing field every so often. */
+   /* Set up a callback to update the playing field every so often. */
    if (SDL_AddTimer (500, drop_timer_cb, NULL) == NULL)
    {
       fprintf (stderr, "Unable to set up timer callback: %s\n", SDL_GetError());
@@ -157,14 +180,28 @@ int main (int argc, char **argv)
 
       switch (evt.type) {
          case SDL_KEYDOWN:
-            fprintf (stderr, "exiting on keypress\n");
-            exit(0);
+            switch (evt.key.keysym.sym) {
+               /* Update block position as soon as a key is pressed for snappy
+                * response times!  Make sure to not drop it at the same time.
+                */
+               case SDLK_LEFT:
+                  update_field (screen, -1, 0, &block_x, &block_y);
+                  break;
+
+               case SDLK_RIGHT:
+                  update_field (screen, 1, 0, &block_x, &block_y);
+                  break;
+
+               default:
+                  fprintf (stderr, "exiting on keypress\n");
+                  exit(0);
+            }
+            break;
 
          case SDL_USEREVENT:
             if (evt.user.code == USER_EVT_DROP)
-               test_draw (screen, &block_x, &block_y);
-            else
-               fprintf (stderr, "got unknown user event type\n");
+               update_field (screen, 0, 1, &block_x, &block_y);
+
             break;
 
          default:
