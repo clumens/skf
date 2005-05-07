@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.2 2005/05/06 02:57:01 chris Exp $ */
+/* $Id: draw.c,v 1.3 2005/05/07 22:11:07 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -17,6 +17,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <SDL/SDL.h>
+#include <stdio.h>
 
 #include "skf.h"
 
@@ -54,4 +55,10 @@ void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
 
    /* Update the rectangular region we just drew. */
    SDL_UpdateRect (screen, base_x, base_y, BLOCK_SIZE, BLOCK_SIZE);
+}
+
+/* Erase a block by just drawing over it with the background color. */
+void erase_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y)
+{
+   draw_block (screen, base_x, base_y, 0x00, 0x00, 0x00);
 }
