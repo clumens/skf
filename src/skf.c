@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.5 2005/05/07 16:51:18 chris Exp $ */
+/* $Id: skf.c,v 1.6 2005/05/07 18:37:22 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -26,7 +26,7 @@
 /* Types for user-defined events. */
 #define USER_EVT_DROP   0
 
-unsigned int field[Y_BLOCKS];
+unsigned int field[X_BLOCKS][Y_BLOCKS];
 
 /* Get the best color depth we have available. */
 Uint32 __inline__ best_color_depth()
@@ -50,49 +50,52 @@ unsigned int __inline__ have_wm()
       return 0;
 }
 
-/* Draw one line of boxes on the specified row. */
-void test_draw (SDL_Surface *screen, unsigned int *on_row)
+/* Draw one block on the specified row. */
+void test_draw (SDL_Surface *screen, unsigned int *x, unsigned int *y)
 {
-   unsigned int x;
-
    /* If the entire screen is now full, the game is over. */
-   if (field[0] == 1)
+   if (field[0][0] == 1)
    {
       fprintf (stderr, "game over\n");
       exit(0);
    }
 
-   /* Draw the new line of blocks. */
-   for (x = 0; x < X_BLOCKS; x++)
-      draw_block (screen, x*BLOCK_SIZE, (*on_row)*BLOCK_SIZE, 0x00, 0xff, 0xff);
+   /* Draw the new block. */
+   draw_block (screen, (*x)*BLOCK_SIZE, (*y)*BLOCK_SIZE, 0, 0xff, 0xff);
+   draw_block (screen, (*x+1)*BLOCK_SIZE, (*y)*BLOCK_SIZE, 0, 0xff, 0xff);
+   draw_block (screen, (*x)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE, 0, 0xff, 0xff);
+   draw_block (screen, (*x+1)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE, 0, 0xff, 0xff);
 
-   /* Erase the space where the line used to be. */
-   if (*on_row > 0)
+   /* Erase the spaces where the block used to be. */
+   if (*y > 0)
    {
-      for (x = 0; x < X_BLOCKS; x++)
-         draw_block (screen, x*BLOCK_SIZE, (*on_row-1)*BLOCK_SIZE, 0, 0, 0);
+      draw_block (screen, (*x)*BLOCK_SIZE, (*y-1)*BLOCK_SIZE, 0, 0, 0);
+      draw_block (screen, (*x+1)*BLOCK_SIZE, (*y-1)*BLOCK_SIZE, 0, 0, 0);
    }
 
    /* If this is the last free row, reset to start dropping from the top. */
-   if (*on_row == Y_BLOCKS-1 || field[*on_row+1] == 1)
+   if (*y == Y_BLOCKS-2 || field[*x][*y+2] == 1)
    {
-      field[*on_row] = 1;
-      *on_row = 0;
+      field[*x][*y] = 1;
+      field[*x+1][*y] = 1;
+      field[*x][*y+1] = 1;
+      field[*x+1][*y+1] = 1;
+      *y = 0;
       return;
    }
 
-   (*on_row)++;
-
-   if (*on_row >= Y_BLOCKS)
-      *on_row = 0;
+   (*y)++;
 }
 
 void init_field ()
 {
-   unsigned int y;
+   unsigned int x, y;
 
    for (y = 0; y < Y_BLOCKS; y++)
-      field[y] = 0;
+   {
+      for (x = 0; x < X_BLOCKS; x++)
+         field[x][y] = 0;
+   }
 }
 
 /* Callback function for timer - just put an event into the queue and later,
@@ -118,7 +121,7 @@ int main (int argc, char **argv)
    SDL_Surface *screen;
    SDL_Event evt;
 
-   unsigned int on_row = 0;
+   unsigned int block_x = 0, block_y = 0;
 
    if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0)
    {
@@ -138,7 +141,7 @@ int main (int argc, char **argv)
    }
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050505", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050507", "skf");
 
    init_field();
 
@@ -153,9 +156,13 @@ int main (int argc, char **argv)
       SDL_WaitEvent (&evt);
 
       switch (evt.type) {
+         case SDL_KEYDOWN:
+            fprintf (stderr, "exiting on keypress\n");
+            exit(0);
+
          case SDL_USEREVENT:
             if (evt.user.code == USER_EVT_DROP)
-               test_draw (screen, &on_row);
+               test_draw (screen, &block_x, &block_y);
             else
                fprintf (stderr, "got unknown user event type\n");
             break;
