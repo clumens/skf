@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.4 2005/05/06 04:08:51 chris Exp $ */
+/* $Id: skf.c,v 1.5 2005/05/07 16:51:18 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -25,6 +25,8 @@
 
 /* Types for user-defined events. */
 #define USER_EVT_DROP   0
+
+unsigned int field[Y_BLOCKS];
 
 /* Get the best color depth we have available. */
 Uint32 __inline__ best_color_depth()
@@ -53,13 +55,44 @@ void test_draw (SDL_Surface *screen, unsigned int *on_row)
 {
    unsigned int x;
 
+   /* If the entire screen is now full, the game is over. */
+   if (field[0] == 1)
+   {
+      fprintf (stderr, "game over\n");
+      exit(0);
+   }
+
+   /* Draw the new line of blocks. */
    for (x = 0; x < X_BLOCKS; x++)
       draw_block (screen, x*BLOCK_SIZE, (*on_row)*BLOCK_SIZE, 0x00, 0xff, 0xff);
+
+   /* Erase the space where the line used to be. */
+   if (*on_row > 0)
+   {
+      for (x = 0; x < X_BLOCKS; x++)
+         draw_block (screen, x*BLOCK_SIZE, (*on_row-1)*BLOCK_SIZE, 0, 0, 0);
+   }
+
+   /* If this is the last free row, reset to start dropping from the top. */
+   if (*on_row == Y_BLOCKS-1 || field[*on_row+1] == 1)
+   {
+      field[*on_row] = 1;
+      *on_row = 0;
+      return;
+   }
 
    (*on_row)++;
 
    if (*on_row >= Y_BLOCKS)
       *on_row = 0;
+}
+
+void init_field ()
+{
+   unsigned int y;
+
+   for (y = 0; y < Y_BLOCKS; y++)
+      field[y] = 0;
 }
 
 /* Callback function for timer - just put an event into the queue and later,
@@ -107,8 +140,10 @@ int main (int argc, char **argv)
    if (have_wm())
       SDL_WM_SetCaption("shit keeps falling - v.20050505", "skf");
 
+   init_field();
+
    /* Set up a callback to add to the playing field every so often. */
-   if (SDL_AddTimer (1000, drop_timer_cb, NULL) == NULL)
+   if (SDL_AddTimer (500, drop_timer_cb, NULL) == NULL)
    {
       fprintf (stderr, "Unable to set up timer callback: %s\n", SDL_GetError());
       exit(1);
