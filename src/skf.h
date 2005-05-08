@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.3 2005/05/08 01:07:34 chris Exp $ */
+/* $Id: skf.h,v 1.4 2005/05/08 01:47:34 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -19,11 +19,14 @@
 #ifndef _SKF_H
 #define _SKF_H 1
 
+/* Size of one block in pixels. */
 #define BLOCK_SIZE   30
+
+/* Size of the playing field in blocks. */
 #define X_BLOCKS     14
 #define Y_BLOCKS     20
 
-/* Size of the playing field. */
+/* Size of the playing field in pixels. */
 #define SKF_FIELD_XRES  BLOCK_SIZE*X_BLOCKS
 #define SKF_FIELD_YRES  BLOCK_SIZE*Y_BLOCKS
 

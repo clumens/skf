@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.10 2005/05/08 01:29:19 chris Exp $ */
+/* $Id: skf.c,v 1.11 2005/05/08 01:47:34 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -39,7 +39,7 @@ typedef struct {
  * something in that space or not.  This is better than relying on whatever
  * we happened to draw there.
  */
-unsigned int field[X_BLOCKS][Y_BLOCKS];
+int field[X_BLOCKS][Y_BLOCKS];
 
 /* Get the best color depth we have available. */
 Uint32 __inline__ best_color_depth()
@@ -63,8 +63,10 @@ unsigned int __inline__ have_wm()
       return 0;
 }
 
-/* Is there anything underneath the block starting at (x, y)? */
-unsigned int __inline__ landed (unsigned int x, unsigned int y)
+/* Is there anything underneath the currently falling block starting at block
+ * coordinate (x, y)?
+ */
+unsigned int __inline__ landed (int x, int y)
 {
    if (y == Y_BLOCKS-2 || field[x][y+2] == 1 || field[x+1][y+2] == 1)
       return 1;
@@ -134,9 +136,12 @@ void update_block (SDL_Surface *screen, block_t *block)
    }
 }
 
+/* Initialize the playing field array by clearing out all positions where a
+ * block could be.
+ */
 void init_field ()
 {
-   unsigned int x, y;
+   int x, y;
 
    for (y = 0; y < Y_BLOCKS; y++)
    {

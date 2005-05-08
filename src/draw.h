@@ -1,4 +1,13 @@
-/* $Id: draw.h,v 1.7 2005/05/08 01:29:19 chris Exp $ */
+/* $Id: draw.h,v 1.8 2005/05/08 01:47:34 chris Exp $
+ *
+ * Basic drawing functions for the skf block-based demo.
+ *
+ * All variables that deal with colors or pixel coordinates should be Uint32.
+ * The top lefthand corner of a block will be required in the parameters.
+ * Block size is assumed internally in these functions based on values in
+ * skf.h.  All variables that reference a block location in the playing field
+ * may be ints, because that's a much smaller area.
+ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -21,12 +30,26 @@
 
 #include <SDL/SDL.h>
 
-void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
+/* Draw one block starting at pixels (base_x, base_y) to screen using the
+ * given color.  screen must not be locked.
+ */
+void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
                  Uint32 color);
-void draw_line (SDL_Surface *screen, unsigned int x1, unsigned int y1,
-                unsigned int x2, unsigned int y2, Uint32 color);
-void erase_block (SDL_Surface *screen, unsigned int base_x,
-                  unsigned int base_y);
+
+/* Draw a straight line from pixel coordinates (x1, y1) to (x2, y2) in the
+ * specified color.  screen must be locked first.
+ */
+void draw_line (SDL_Surface *screen, Uint32 x1, Uint32 y1, Uint32 x2, Uint32 y2,
+                Uint32 color);
+
+/* Erase the block at pixel coordinates (base_x, base_y) by just drawing over
+ * it in the background color.  screen must not be locked.
+ */
+void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y);
+
+/* Initialize the screen by setting the background color.  screen must not be
+ * locked.
+ */
 void init_screen (SDL_Surface *screen);
 
 #endif

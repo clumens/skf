@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.6 2005/05/08 01:29:19 chris Exp $ */
+/* $Id: draw.c,v 1.7 2005/05/08 01:47:34 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -41,16 +41,14 @@ static void __inline__ draw_pixel (SDL_Surface *screen, Uint8 R, Uint8 G,
  * | PUBLIC FUNCTIONS                                                    |
  * +=====================================================================+
  */
-
-/* Draw one block.  screen must not be locked. */
-void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
+void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
                  Uint32 color)
 {
-   unsigned int x, y;
+   Uint32 x, y;
 
-   Uint8 R = (color & 0x00ff0000) >> 16;
-   Uint8 G = (color & 0x0000ff00) >> 8;
-   Uint8 B =  color & 0x000000ff;
+   Uint8 R = RVAL(color);
+   Uint8 G = GVAL(color);
+   Uint8 B = BVAL(color);
 
    /* Make sure to lock before drawing. */
    if (SDL_MUSTLOCK(screen))
@@ -82,17 +80,14 @@ void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
    SDL_UpdateRect (screen, base_x, base_y, BLOCK_SIZE, BLOCK_SIZE);
 }
 
-/* Draw a line from (x1, y1) to (x2, y2) in the specified color.  screen
- * must be locked before calling this function.
- */
-void draw_line (SDL_Surface *screen, unsigned int x1, unsigned int y1,
-                unsigned int x2, unsigned int y2, Uint32 color)
+void draw_line (SDL_Surface *screen, Uint32 x1, Uint32 y1, Uint32 x2, Uint32 y2,
+                Uint32 color)
 {
-   Uint8 R = (color & 0x00ff0000) >> 16;
-   Uint8 G = (color & 0x0000ff00) >> 8;
-   Uint8 B =  color & 0x000000ff;
+   Uint8 R = RVAL(color);
+   Uint8 G = GVAL(color);
+   Uint8 B = BVAL(color);
 
-   unsigned int i;
+   Uint32 i;
 
    if (x1 == x2)
    {
@@ -110,10 +105,7 @@ void draw_line (SDL_Surface *screen, unsigned int x1, unsigned int y1,
       return;
 }
 
-/* Erase a block by just drawing over it with the background color.  screen
- * must not be locked.
- */
-void erase_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y)
+void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)
 {
    SDL_Rect r = { base_x, base_y, BLOCK_SIZE, BLOCK_SIZE };
 
@@ -123,6 +115,17 @@ void erase_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y)
 
 void init_screen (SDL_Surface *screen)
 {
+   /* Make sure to lock before drawing. */
+   if (SDL_MUSTLOCK(screen))
+   {
+      if (SDL_LockSurface(screen) < 0)
+         return;
+   }
+
    SDL_FillRect (screen, NULL, GREY);
    SDL_Flip(screen);
+
+   /* Give up the lock. */
+   if (SDL_MUSTLOCK(screen))
+      SDL_UnlockSurface(screen);
 }
