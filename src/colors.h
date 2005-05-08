@@ -1,4 +1,4 @@
-/* $Id: colors.h,v 1.2 2005/05/08 01:07:34 chris Exp $ */
+/* $Id: colors.h,v 1.3 2005/05/08 01:29:19 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -20,12 +20,16 @@
 #define _COLORS_H 1
 #include <SDL/SDL.h>
 
+/* Special/background colors */
 #define BLACK     0x00000000
+#define GREY      0x00bebebe
+#define WHITE     0x00ffffff
+
+/* Block colors */
 #define BLUE      0x000000ff
 #define GREEN     0x00006400
 #define ORANGE    0x00ffa500
 #define RED       0x00cd0000
-#define WHITE     0x00ffffff
 
 #define NCOLORS   4
 

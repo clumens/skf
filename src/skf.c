@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.9 2005/05/08 01:07:34 chris Exp $ */
+/* $Id: skf.c,v 1.10 2005/05/08 01:29:19 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -193,6 +193,7 @@ int main (int argc, char **argv)
       SDL_WM_SetCaption("shit keeps falling - v.20050507", "skf");
 
    init_field();
+   init_screen(screen);
 
    /* Set up a callback to update the playing field every so often. */
    if (SDL_AddTimer (500, drop_timer_cb, NULL) == NULL)

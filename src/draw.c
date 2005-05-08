@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.5 2005/05/08 01:07:34 chris Exp $ */
+/* $Id: draw.c,v 1.6 2005/05/08 01:29:19 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -115,5 +115,14 @@ void draw_line (SDL_Surface *screen, unsigned int x1, unsigned int y1,
  */
 void erase_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y)
 {
-   draw_block (screen, base_x, base_y, BLACK);
+   SDL_Rect r = { base_x, base_y, BLOCK_SIZE, BLOCK_SIZE };
+
+   SDL_FillRect (screen, &r, GREY);
+   SDL_UpdateRect (screen, base_x, base_y, BLOCK_SIZE, BLOCK_SIZE);
+}
+
+void init_screen (SDL_Surface *screen)
+{
+   SDL_FillRect (screen, NULL, GREY);
+   SDL_Flip(screen);
 }
