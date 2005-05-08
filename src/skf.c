@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.11 2005/05/08 01:47:34 chris Exp $ */
+/* $Id: skf.c,v 1.12 2005/05/08 17:15:56 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -25,6 +25,12 @@
 #include "draw.h"
 #include "skf.h"
 
+/* A type representing which sections of the playing field have blocks in
+ * them and which do not.  The falling block is not represented.
+ */
+typedef int field_t[X_BLOCKS][Y_BLOCKS];
+
+/* A type representing a falling block. */
 typedef struct {
    unsigned int new;
    int x, y;
@@ -33,13 +39,8 @@ typedef struct {
 } block_t;
 
 /* Types for user-defined events. */
-#define USER_EVT_DROP   0
-
-/* A representation of the playing field so we can easily tell if there's
- * something in that space or not.  This is better than relying on whatever
- * we happened to draw there.
- */
-int field[X_BLOCKS][Y_BLOCKS];
+#define EVT_DROP     0
+#define EVT_LAND     1
 
 /* Get the best color depth we have available. */
 Uint32 __inline__ best_color_depth()
@@ -66,18 +67,18 @@ unsigned int __inline__ have_wm()
 /* Is there anything underneath the currently falling block starting at block
  * coordinate (x, y)?
  */
-unsigned int __inline__ landed (int x, int y)
+unsigned int __inline__ landed (field_t *field, int x, int y)
 {
-   if (y == Y_BLOCKS-2 || field[x][y+2] == 1 || field[x+1][y+2] == 1)
+   if (y == Y_BLOCKS-2 || (*field)[x][y+2] == 1 || (*field)[x+1][y+2] == 1)
       return 1;
    else
       return 0;
 }
 
 /* Update the position of the currently dropping block on the playing field. */
-void update_block (SDL_Surface *screen, block_t *block)
+void update_block (SDL_Surface *screen, field_t *field, block_t *block)
 {
-   if (landed (block->x, 0))
+   if (landed (field, block->x, 0))
    {
       fprintf (stderr, "game over\n");
       exit(0);
@@ -118,36 +119,38 @@ void update_block (SDL_Surface *screen, block_t *block)
                block->color);
 
    /* If the block landed somewhere, reset for dropping the next one. */
-   if (landed (block->x, block->y))
+   if (landed (field, block->x, block->y))
    {
-      /* Make sure that chunk of the field is in use. */
-      field[block->x][block->y] = 1;
-      field[block->x+1][block->y] = 1;
-      field[block->x][block->y+1] = 1;
-      field[block->x+1][block->y+1] = 1;
+      SDL_Event evt;
 
-      /* Create a new block. */
-      block->new = 1;
-      block->x = (X_BLOCKS-1) / 2;
-      block->y = 0;
-      block->dx = 0;
-      block->dy = 0;
-      block->color = rand_color();
+      evt.type = SDL_USEREVENT;
+      evt.user.code = EVT_LAND;
+      evt.user.data1 = NULL;
+      evt.user.data2 = NULL;
+      SDL_PushEvent (&evt);
    }
 }
 
 /* Initialize the playing field array by clearing out all positions where a
  * block could be.
  */
-void init_field ()
+void init_field (field_t *field)
 {
    int x, y;
 
    for (y = 0; y < Y_BLOCKS; y++)
    {
       for (x = 0; x < X_BLOCKS; x++)
-         field[x][y] = 0;
+         (*field)[x][y] = 0;
    }
+}
+
+void __inline__ lock_field_region (field_t *field, block_t *block)
+{
+   (*field)[block->x][block->y] = 1;
+   (*field)[block->x+1][block->y] = 1;
+   (*field)[block->x][block->y+1] = 1;
+   (*field)[block->x+1][block->y+1] = 1;
 }
 
 /* Callback function for timer - just put an event into the queue and later,
@@ -159,7 +162,7 @@ Uint32 drop_timer_cb (Uint32 interval, void *params)
    SDL_Event evt;
 
    evt.type = SDL_USEREVENT;
-   evt.user.code = USER_EVT_DROP;
+   evt.user.code = EVT_DROP;
    evt.user.data1 = NULL;
    evt.user.data2 = NULL;
    SDL_PushEvent (&evt);
@@ -172,6 +175,7 @@ int main (int argc, char **argv)
 {
    SDL_Surface *screen;
    SDL_Event evt;
+   field_t field;
    block_t block = { 1, (X_BLOCKS-1) / 2, 0, 0, 0, BLUE };
 
    /* Seed RNG for picking random colors, among other things. */
@@ -197,7 +201,7 @@ int main (int argc, char **argv)
    if (have_wm())
       SDL_WM_SetCaption("shit keeps falling - v.20050507", "skf");
 
-   init_field();
+   init_field(&field);
    init_screen(screen);
 
    /* Set up a callback to update the playing field every so often. */
@@ -219,13 +223,19 @@ int main (int argc, char **argv)
                case SDLK_LEFT:
                   block.dx = -1;
                   block.dy = 0;
-                  update_block (screen, &block);
+                  update_block (screen, &field, &block);
                   break;
 
                case SDLK_RIGHT:
                   block.dx = 1;
                   block.dy = 0;
-                  update_block (screen, &block);
+                  update_block (screen, &field, &block);
+                  break;
+
+               case SDLK_DOWN:
+                  block.dx = 0;
+                  block.dy = 1;
+                  update_block (screen, &field, &block);
                   break;
 
                default:
@@ -235,11 +245,25 @@ int main (int argc, char **argv)
             break;
 
          case SDL_USEREVENT:
-            if (evt.user.code == USER_EVT_DROP)
-            {
-               block.dx = 0;
-               block.dy = 1;
-               update_block (screen, &block);
+            switch (evt.user.code) {
+               case EVT_DROP:
+                  block.dx = 0;
+                  block.dy = 1;
+                  update_block (screen, &field, &block);
+                  break;
+
+               case EVT_LAND:
+                  /* Make sure that chunk of the field is in use. */
+                  lock_field_region (&field, &block);
+
+                  /* Create a new block. */
+                  block.new = 1;
+                  block.x = (X_BLOCKS-1) / 2;
+                  block.y = 0;
+                  block.dx = 0;
+                  block.dy = 0;
+                  block.color = rand_color();
+                  break;
             }
 
             break;
