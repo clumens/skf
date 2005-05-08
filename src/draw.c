@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.7 2005/05/08 01:47:34 chris Exp $ */
+/* $Id: draw.c,v 1.8 2005/05/08 18:15:18 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -128,4 +128,33 @@ void init_screen (SDL_Surface *screen)
    /* Give up the lock. */
    if (SDL_MUSTLOCK(screen))
       SDL_UnlockSurface(screen);
+}
+
+void x_out_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)
+{
+   Uint32 i;
+
+   Uint8 R = RVAL(WHITE);
+   Uint8 G = GVAL(WHITE);
+   Uint8 B = BVAL(WHITE);
+
+   /* Make sure to lock before drawing. */
+   if (SDL_MUSTLOCK(screen))
+   {
+      if (SDL_LockSurface(screen) < 0)
+         return;
+   }
+
+   for (i = 0; i < BLOCK_SIZE; i++)
+      draw_pixel (screen, R, G, B, base_x+i, base_y+i);
+
+   for (i = 0; i < BLOCK_SIZE; i++)
+      draw_pixel (screen, R, G, B, base_x+i, base_y+BLOCK_SIZE-i);
+
+   /* Give up the lock. */
+   if (SDL_MUSTLOCK(screen))
+      SDL_UnlockSurface(screen);
+
+   /* Update the rectangular region we just drew. */
+   SDL_UpdateRect (screen, base_x, base_y, BLOCK_SIZE, BLOCK_SIZE);
 }

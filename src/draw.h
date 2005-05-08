@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.8 2005/05/08 01:47:34 chris Exp $
+/* $Id: draw.h,v 1.9 2005/05/08 18:15:18 chris Exp $
  *
  * Basic drawing functions for the skf block-based demo.
  *
@@ -51,5 +51,10 @@ void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y);
  * locked.
  */
 void init_screen (SDL_Surface *screen);
+
+/* Draw a white X over a block, indicating that it's to be removed.  screen
+ * must not be locked.
+ */
+void x_out_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y);
 
 #endif

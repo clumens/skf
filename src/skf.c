@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.12 2005/05/08 17:15:56 chris Exp $ */
+/* $Id: skf.c,v 1.13 2005/05/08 18:15:18 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -153,6 +153,33 @@ void __inline__ lock_field_region (field_t *field, block_t *block)
    (*field)[block->x+1][block->y+1] = 1;
 }
 
+void check_full_lines (SDL_Surface *screen, field_t *field, int lowest_y)
+{
+   int y;
+
+   for (y = lowest_y; y >= 0; y--)
+   {
+      int x, all_full = 1;
+
+      for (x = 0; x < X_BLOCKS; x++)
+      {
+         /* If we find a gap in the row, check the next one up. */
+         if ((*field)[x][y] == 0)
+         {
+            all_full = 0;
+            break;
+         }
+      }
+
+      /* There are blocks all the way across this row.  X them out. */
+      if (all_full == 1)
+      {
+         for (x = 0; x < X_BLOCKS; x++)
+            x_out_block (screen, x*BLOCK_SIZE, y*BLOCK_SIZE);
+      }
+   }
+}
+
 /* Callback function for timer - just put an event into the queue and later,
  * it will be processed to do the drawing.  We're not supposed to call functions
  * from within the callback (stupid interrupt handler model).
@@ -199,7 +226,7 @@ int main (int argc, char **argv)
    }
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050507", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050508", "skf");
 
    init_field(&field);
    init_screen(screen);
@@ -255,6 +282,11 @@ int main (int argc, char **argv)
                case EVT_LAND:
                   /* Make sure that chunk of the field is in use. */
                   lock_field_region (&field, &block);
+
+                  /* Can we kill a full line?  We only have to start at the
+                   * bottom end of the block that just landed.
+                   */
+                  check_full_lines (screen, &field, block.y+1);
 
                   /* Create a new block. */
                   block.new = 1;
