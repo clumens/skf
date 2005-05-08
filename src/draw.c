@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.8 2005/05/08 18:15:18 chris Exp $ */
+/* $Id: draw.c,v 1.9 2005/05/08 20:08:39 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -80,6 +80,15 @@ void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
    SDL_UpdateRect (screen, base_x, base_y, BLOCK_SIZE, BLOCK_SIZE);
 }
 
+void draw_4block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
+                  Uint32 color)
+{
+   draw_block (screen, base_x, base_y, color);
+   draw_block (screen, base_x+BLOCK_SIZE, base_y, color);
+   draw_block (screen, base_x, base_y+BLOCK_SIZE, color);
+   draw_block (screen, base_x+BLOCK_SIZE, base_y+BLOCK_SIZE, color);
+}
+
 void draw_line (SDL_Surface *screen, Uint32 x1, Uint32 y1, Uint32 x2, Uint32 y2,
                 Uint32 color)
 {
@@ -111,6 +120,14 @@ void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)
 
    SDL_FillRect (screen, &r, GREY);
    SDL_UpdateRect (screen, base_x, base_y, BLOCK_SIZE, BLOCK_SIZE);
+}
+
+void erase_4block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)
+{
+   erase_block (screen, base_x, base_y);
+   erase_block (screen, base_x+BLOCK_SIZE, base_y);
+   erase_block (screen, base_x, base_y+BLOCK_SIZE);
+   erase_block (screen, base_x+BLOCK_SIZE, base_y+BLOCK_SIZE);
 }
 
 void init_screen (SDL_Surface *screen)

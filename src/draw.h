@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.9 2005/05/08 18:15:18 chris Exp $
+/* $Id: draw.h,v 1.10 2005/05/08 20:08:39 chris Exp $
  *
  * Basic drawing functions for the skf block-based demo.
  *
@@ -36,6 +36,12 @@
 void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
                  Uint32 color);
 
+/* Draw the 2x2 group of blocks starting at pixels (base_x, base_y) to screen
+ * using the given color.  screen must not be locked.
+ */
+void draw_4block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
+                  Uint32 color);
+
 /* Draw a straight line from pixel coordinates (x1, y1) to (x2, y2) in the
  * specified color.  screen must be locked first.
  */
@@ -46,6 +52,11 @@ void draw_line (SDL_Surface *screen, Uint32 x1, Uint32 y1, Uint32 x2, Uint32 y2,
  * it in the background color.  screen must not be locked.
  */
 void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y);
+
+/* Erase the 2x2 group of blocks at pixel coordinates (base_x, base_y) by
+ * just drawing over it in the background color.  screen must not be locked.
+ */
+void erase_4block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y);
 
 /* Initialize the screen by setting the background color.  screen must not be
  * locked.
