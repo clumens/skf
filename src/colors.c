@@ -1,4 +1,4 @@
-/* $Id: colors.c,v 1.2 2005/05/08 01:47:34 chris Exp $ */
+/* $Id: colors.c,v 1.3 2005/05/08 01:59:54 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -30,6 +30,11 @@ static Uint32 colors[] = { BLUE, GREEN, ORANGE, RED };
  */
 Uint32 rand_color()
 {
-   unsigned int n = 1+(int) ((NCOLORS+1.0)*rand()/(RAND_MAX+1.0));
-   return colors[n-1];
+   unsigned int n = (int) ((NCOLORS+1.0)*rand()/(RAND_MAX+1.0));
+
+   /* Sanity check. */
+   if (n >= NCOLORS) n = NCOLORS-1;
+   if (n < 0) n = 0;
+
+   return colors[n];
 }
