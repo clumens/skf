@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.7 2005/05/07 23:19:22 chris Exp $ */
+/* $Id: skf.c,v 1.8 2005/05/08 00:26:43 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -20,8 +20,15 @@
 #include <stdlib.h>
 #include <SDL/SDL.h>
 
+#include "colors.h"
 #include "draw.h"
 #include "skf.h"
+
+typedef struct {
+   unsigned int new;
+   int x, y;
+   int dx, dy;
+} block_t;
 
 /* Types for user-defined events. */
 #define USER_EVT_DROP   0
@@ -64,49 +71,59 @@ unsigned int __inline__ landed (unsigned int x, unsigned int y)
 }
 
 /* Update the position of the currently dropping block on the playing field. */
-void update_field (SDL_Surface *screen, int dx, int dy, int *x, int *y)
+void update_block (SDL_Surface *screen, block_t *block)
 {
-   /* If the entire screen is now full, the game is over. */
-   if (landed (*x, 0))
+   if (landed (block->x, 0))
    {
       fprintf (stderr, "game over\n");
       exit(0);
    }
 
-   /* Erase the previous position of the block. */
-   if (*y > 0)
+   /* Only try to erase the previous position if it's not a new block.  If it's
+    * new, it obviously just got here and doesn't have a previous position.
+    */
+   if (block->new)
+      block->new = 0;
+   else
    {
-      erase_block (screen, (*x)*BLOCK_SIZE, (*y)*BLOCK_SIZE);
-      erase_block (screen, (*x+1)*BLOCK_SIZE, (*y)*BLOCK_SIZE);
-      erase_block (screen, (*x)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE);
-      erase_block (screen, (*x+1)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE);
+      /* Erase the previous position of the block. */
+      erase_block (screen, block->x*BLOCK_SIZE, block->y*BLOCK_SIZE);
+      erase_block (screen, (block->x+1)*BLOCK_SIZE, block->y*BLOCK_SIZE);
+      erase_block (screen, block->x*BLOCK_SIZE, (block->y+1)*BLOCK_SIZE);
+      erase_block (screen, (block->x+1)*BLOCK_SIZE, (block->y+1)*BLOCK_SIZE);
+
+      block->y += block->dy;
    }
 
-   /* Update position, making sure the new position makes sense. */
-   *x += dx;
-   *y += dy;
+   /* Update x position, making sure the new position makes sense. */
+   block->x += block->dx;
 
-   if (*x < 0)
-      *x = 0;
-   else if (*x > X_BLOCKS-2)
-      *x = X_BLOCKS-2;
+   if (block->x < 0)
+      block->x = 0;
+   else if (block->x > X_BLOCKS-2)
+      block->x = X_BLOCKS-2;
 
    /* Draw the block in its new position. */
-   draw_block (screen, (*x)*BLOCK_SIZE, (*y)*BLOCK_SIZE, 0, 0xff, 0xff);
-   draw_block (screen, (*x+1)*BLOCK_SIZE, (*y)*BLOCK_SIZE, 0, 0xff, 0xff);
-   draw_block (screen, (*x)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE, 0, 0xff, 0xff);
-   draw_block (screen, (*x+1)*BLOCK_SIZE, (*y+1)*BLOCK_SIZE, 0, 0xff, 0xff);
+   draw_block (screen, block->x*BLOCK_SIZE, block->y*BLOCK_SIZE, TEAL);
+   draw_block (screen, (block->x+1)*BLOCK_SIZE, block->y*BLOCK_SIZE, TEAL);
+   draw_block (screen, block->x*BLOCK_SIZE, (block->y+1)*BLOCK_SIZE, TEAL);
+   draw_block (screen, (block->x+1)*BLOCK_SIZE, (block->y+1)*BLOCK_SIZE, TEAL);
 
    /* If the block landed somewhere, reset for dropping the next one. */
-   if (landed (*x, *y))
+   if (landed (block->x, block->y))
    {
-      field[*x][*y] = 1;
-      field[*x+1][*y] = 1;
-      field[*x][*y+1] = 1;
-      field[*x+1][*y+1] = 1;
-      *y = 0;
-      *x = X_BLOCKS / 2;
-      return;
+      /* Make sure that chunk of the field is in use. */
+      field[block->x][block->y] = 1;
+      field[block->x+1][block->y] = 1;
+      field[block->x][block->y+1] = 1;
+      field[block->x+1][block->y+1] = 1;
+
+      /* Create a new block. */
+      block->new = 1;
+      block->x = X_BLOCKS / 2;
+      block->y = 0;
+      block->dx = 0;
+      block->dy = 0;
    }
 }
 
@@ -143,8 +160,7 @@ int main (int argc, char **argv)
 {
    SDL_Surface *screen;
    SDL_Event evt;
-
-   int block_x = X_BLOCKS / 2, block_y = 0;
+   block_t block = { 1, X_BLOCKS / 2, 0, 0, 0 };
 
    if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0)
    {
@@ -185,11 +201,15 @@ int main (int argc, char **argv)
                 * response times!  Make sure to not drop it at the same time.
                 */
                case SDLK_LEFT:
-                  update_field (screen, -1, 0, &block_x, &block_y);
+                  block.dx = -1;
+                  block.dy = 0;
+                  update_block (screen, &block);
                   break;
 
                case SDLK_RIGHT:
-                  update_field (screen, 1, 0, &block_x, &block_y);
+                  block.dx = 1;
+                  block.dy = 0;
+                  update_block (screen, &block);
                   break;
 
                default:
@@ -200,7 +220,11 @@ int main (int argc, char **argv)
 
          case SDL_USEREVENT:
             if (evt.user.code == USER_EVT_DROP)
-               update_field (screen, 0, 1, &block_x, &block_y);
+            {
+               block.dx = 0;
+               block.dy = 1;
+               update_block (screen, &block);
+            }
 
             break;
 

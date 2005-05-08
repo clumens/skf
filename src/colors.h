@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.5 2005/05/08 00:26:43 chris Exp $ */
+/* $Id: colors.h,v 1.1 2005/05/08 00:26:43 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -16,14 +16,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#ifndef _DRAW_H
-#define _DRAW_H 1
+#ifndef _COLORS_H
+#define _COLORS_H 1
 
-#include <SDL/SDL.h>
-
-void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
-                 Uint32 color);
-void erase_block (SDL_Surface *screen, unsigned int base_x,
-                  unsigned int base_y);
+#define BLACK     0x00000000
+#define TEAL      0x0000ffff
+#define WHITE     0x00ffffff
 
 #endif

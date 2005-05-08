@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.3 2005/05/07 22:11:07 chris Exp $ */
+/* $Id: draw.c,v 1.4 2005/05/08 00:26:43 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -19,6 +19,7 @@
 #include <SDL/SDL.h>
 #include <stdio.h>
 
+#include "colors.h"
 #include "skf.h"
 
 /* Draw one pixel to the video framebuffer. */
@@ -31,9 +32,13 @@ static void __inline__ draw_pixel (SDL_Surface *screen, Uint8 R, Uint8 G,
 
 /* Draw one block. */
 void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
-                 Uint8 R, Uint8 G, Uint8 B)
+                 Uint32 color)
 {
    unsigned int x, y;
+
+   Uint8 R = (color & 0x00ff0000) >> 16;
+   Uint8 G = (color & 0x0000ff00) >> 8;
+   Uint8 B =  color & 0x000000ff;
 
    /* Make sure to lock before drawing. */
    if (SDL_MUSTLOCK(screen))
@@ -60,5 +65,5 @@ void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
 /* Erase a block by just drawing over it with the background color. */
 void erase_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y)
 {
-   draw_block (screen, base_x, base_y, 0x00, 0x00, 0x00);
+   draw_block (screen, base_x, base_y, BLACK);
 }
