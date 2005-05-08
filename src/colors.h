@@ -1,4 +1,4 @@
-/* $Id: colors.h,v 1.1 2005/05/08 00:26:43 chris Exp $ */
+/* $Id: colors.h,v 1.2 2005/05/08 01:07:34 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -18,9 +18,17 @@
  */
 #ifndef _COLORS_H
 #define _COLORS_H 1
+#include <SDL/SDL.h>
 
 #define BLACK     0x00000000
-#define TEAL      0x0000ffff
+#define BLUE      0x000000ff
+#define GREEN     0x00006400
+#define ORANGE    0x00ffa500
+#define RED       0x00cd0000
 #define WHITE     0x00ffffff
+
+#define NCOLORS   4
+
+Uint32 rand_color();
 
 #endif

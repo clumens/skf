@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.3 2005/05/08 01:07:34 chris Exp $ */
+/* $Id: colors.c,v 1.1 2005/05/08 01:07:34 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -16,19 +16,21 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#ifndef _SKF_H
-#define _SKF_H 1
+#include <stdlib.h>
+#include <SDL/SDL.h>
 
-#define BLOCK_SIZE   30
-#define X_BLOCKS     14
-#define Y_BLOCKS     20
+#include "colors.h"
 
-/* Size of the playing field. */
-#define SKF_FIELD_XRES  BLOCK_SIZE*X_BLOCKS
-#define SKF_FIELD_YRES  BLOCK_SIZE*Y_BLOCKS
+/* Possible color choices for a block. */
+static Uint32 colors[] = { BLUE, GREEN, ORANGE, RED };
 
-/* Size of the entire window we want to draw. */
-#define SKF_XRES  SKF_FIELD_XRES
-#define SKF_YRES  SKF_FIELD_YRES
+/* +=====================================================================+
+ * | PUBLIC FUNCTIONS                                                    |
+ * +=====================================================================+
+ */
 
-#endif
+Uint32 rand_color()
+{
+   unsigned int n = 1+(int) ((NCOLORS+1.0)*rand()/(RAND_MAX+1.0));
+   return colors[n-1];
+}

@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.8 2005/05/08 00:26:43 chris Exp $ */
+/* $Id: skf.c,v 1.9 2005/05/08 01:07:34 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -18,6 +18,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <SDL/SDL.h>
 
 #include "colors.h"
@@ -28,6 +29,7 @@ typedef struct {
    unsigned int new;
    int x, y;
    int dx, dy;
+   Uint32 color;
 } block_t;
 
 /* Types for user-defined events. */
@@ -104,10 +106,14 @@ void update_block (SDL_Surface *screen, block_t *block)
       block->x = X_BLOCKS-2;
 
    /* Draw the block in its new position. */
-   draw_block (screen, block->x*BLOCK_SIZE, block->y*BLOCK_SIZE, TEAL);
-   draw_block (screen, (block->x+1)*BLOCK_SIZE, block->y*BLOCK_SIZE, TEAL);
-   draw_block (screen, block->x*BLOCK_SIZE, (block->y+1)*BLOCK_SIZE, TEAL);
-   draw_block (screen, (block->x+1)*BLOCK_SIZE, (block->y+1)*BLOCK_SIZE, TEAL);
+   draw_block (screen, block->x*BLOCK_SIZE, block->y*BLOCK_SIZE,
+               block->color);
+   draw_block (screen, (block->x+1)*BLOCK_SIZE, block->y*BLOCK_SIZE,
+               block->color);
+   draw_block (screen, block->x*BLOCK_SIZE, (block->y+1)*BLOCK_SIZE,
+               block->color);
+   draw_block (screen, (block->x+1)*BLOCK_SIZE, (block->y+1)*BLOCK_SIZE,
+               block->color);
 
    /* If the block landed somewhere, reset for dropping the next one. */
    if (landed (block->x, block->y))
@@ -120,10 +126,11 @@ void update_block (SDL_Surface *screen, block_t *block)
 
       /* Create a new block. */
       block->new = 1;
-      block->x = X_BLOCKS / 2;
+      block->x = (X_BLOCKS-1) / 2;
       block->y = 0;
       block->dx = 0;
       block->dy = 0;
+      block->color = rand_color();
    }
 }
 
@@ -160,7 +167,10 @@ int main (int argc, char **argv)
 {
    SDL_Surface *screen;
    SDL_Event evt;
-   block_t block = { 1, X_BLOCKS / 2, 0, 0, 0 };
+   block_t block = { 1, (X_BLOCKS-1) / 2, 0, 0, 0, BLUE };
+
+   /* Seed RNG for picking random colors, among other things. */
+   srand (time(NULL));
 
    if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0)
    {

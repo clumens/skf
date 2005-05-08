@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.5 2005/05/08 00:26:43 chris Exp $ */
+/* $Id: draw.h,v 1.6 2005/05/08 01:07:34 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -23,6 +23,8 @@
 
 void draw_block (SDL_Surface *screen, unsigned int base_x, unsigned int base_y,
                  Uint32 color);
+void draw_line (SDL_Surface *screen, unsigned int x1, unsigned int y1,
+                unsigned int x2, unsigned int y2, Uint32 color);
 void erase_block (SDL_Surface *screen, unsigned int base_x,
                   unsigned int base_y);
 
