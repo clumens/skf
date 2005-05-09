@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.4 2005/05/08 01:47:34 chris Exp $ */
+/* $Id: skf.h,v 1.5 2005/05/09 23:04:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -19,6 +19,8 @@
 #ifndef _SKF_H
 #define _SKF_H 1
 
+#include <SDL/SDL.h>
+
 /* Size of one block in pixels. */
 #define BLOCK_SIZE   30
 
@@ -33,5 +35,11 @@
 /* Size of the entire window we want to draw. */
 #define SKF_XRES  SKF_FIELD_XRES
 #define SKF_YRES  SKF_FIELD_YRES
+
+/* Returns the best color depth available in bits per pixel. */
+Uint32 best_color_depth();
+
+/* Do we have a window manager available? */
+unsigned int have_wm();
 
 #endif

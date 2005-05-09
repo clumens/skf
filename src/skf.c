@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.14 2005/05/09 02:50:29 chris Exp $ */
+/* $Id: skf.c,v 1.15 2005/05/09 23:04:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -92,7 +92,7 @@ Uint32 drop_timer_cb (Uint32 interval, void *params)
  */
 
 /* Get the best color depth we have available. */
-Uint32 __inline__ best_color_depth()
+Uint32 best_color_depth()
 {
    const SDL_VideoInfo *info = SDL_GetVideoInfo();
 
@@ -103,7 +103,7 @@ Uint32 __inline__ best_color_depth()
 }
 
 /* Is there a window manager? */
-unsigned int __inline__ have_wm()
+unsigned int have_wm()
 {
    const SDL_VideoInfo *info = SDL_GetVideoInfo();
 
@@ -265,14 +265,13 @@ unsigned int __inline__ line_full (field_t *field, int line)
 void check_full_lines (SDL_Surface *screen, state_t *state, int lowest_y)
 {
    int x, y = lowest_y;
-   unsigned int keep_checking = 1;
 
    /* First, kill the drop timer since we don't want new blocks falling
     * while we might possibly be checking the board.
     */
    SDL_RemoveTimer (state->drop_timer_id);
 
-   while (keep_checking && y >= 0)
+   while (y >= 0)
    {
       /* There are blocks all the way across this row.  X them out. */
       if (line_full (&(state->field), y))
@@ -322,7 +321,7 @@ int main (int argc, char **argv)
    }
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050508", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050509", "skf");
 
    init_field(&state.field);
    init_screen(screen);

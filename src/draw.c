@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.10 2005/05/09 02:47:26 chris Exp $ */
+/* $Id: draw.c,v 1.11 2005/05/09 23:04:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -30,17 +30,65 @@
 /* Draw one pixel to the video framebuffer.  screen must be locked before
  * calling this function.
  */
-static void __inline__ draw_pixel (SDL_Surface *screen, Uint8 R, Uint8 G,
-                                   Uint8 B, Uint32 x, Uint32 y)
+static void __inline__ draw_pixel (SDL_Surface *screen, unsigned int bpp,
+                                   Uint32 color, Uint32 x, Uint32 y)
 {
-   Uint32 *bufp = (Uint32 *) screen->pixels + y*screen->pitch/4 + x;
-   *bufp = SDL_MapRGB(screen->format, R, G, B);
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*bpp);
+
+   switch (bpp) {
+      case 1:
+         *p = color;
+         break;
+
+      case 2:
+         *(Uint16 *) p = color;
+         break;
+
+      case 3:
+         if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+         {
+            p[0] = RVAL(color);
+            p[1] = GVAL(color);
+            p[2] = BVAL(color);
+         }
+         else
+         {
+            p[0] = BVAL(color);
+            p[1] = GVAL(color);
+            p[2] = RVAL(color);
+         }
+         break;
+
+      case 4:
+         *(Uint32 *) p = color;
+         break;
+   }
 }
 
-static Uint32 __inline__ get_pixel (SDL_Surface *screen, Uint32 x, Uint32 y)
+static Uint32 __inline__ get_pixel (SDL_Surface *screen, unsigned int bpp,
+                                    Uint32 x, Uint32 y)
 {
-   Uint8 *p = (Uint8 *) screen->pixels + y * screen->pitch + x * 4;
-   return *(Uint32 *)p;
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*bpp);
+
+   switch (bpp) {
+      case 1:
+         return *p;
+
+      case 2:
+         return *(Uint16 *) p;
+
+      case 3:
+         if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+            return p[0] << 16 | p[1] << 8 | p[2];
+         else
+            return p[0] | p[1] << 8 | p[2] << 16;
+
+      case 4:
+         return *(Uint32 *) p;
+
+      default:
+         return 0;
+   }
 }
 
 /* +=====================================================================+
@@ -51,6 +99,7 @@ void copy_block (SDL_Surface *screen, Uint32 src_x, Uint32 src_y,
                  Uint32 dest_x, Uint32 dest_y)
 {
    int x, y;
+   unsigned int bpp = best_color_depth()/8;
 
    /* Make sure to lock before drawing. */
    if (SDL_MUSTLOCK(screen))
@@ -63,12 +112,8 @@ void copy_block (SDL_Surface *screen, Uint32 src_x, Uint32 src_y,
    for (y = 0; y < BLOCK_SIZE; y++)
    {
       for (x = 0; x < BLOCK_SIZE; x++)
-      {
-         Uint32 color = get_pixel (screen, src_x+x, src_y+y);
-
-         draw_pixel (screen, RVAL(color), GVAL(color), BVAL(color),
+         draw_pixel (screen, bpp, get_pixel (screen, bpp, src_x+x, src_y+y),
                      dest_x+x, dest_y+y);
-      }
    }
 
    /* Give up the lock. */
@@ -83,10 +128,7 @@ void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
                  Uint32 color)
 {
    Uint32 x, y;
-
-   Uint8 R = RVAL(color);
-   Uint8 G = GVAL(color);
-   Uint8 B = BVAL(color);
+   unsigned int bpp = best_color_depth()/8;
 
    /* Make sure to lock before drawing. */
    if (SDL_MUSTLOCK(screen))
@@ -99,7 +141,7 @@ void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
    for (y = 0; y < BLOCK_SIZE; y++)
    {
       for (x = 0; x < BLOCK_SIZE; x++)
-         draw_pixel (screen, R, G, B, base_x+x, base_y+y);
+         draw_pixel (screen, bpp, color, base_x+x, base_y+y);
    }
 
    /* A little decoration would be nice. */
@@ -130,23 +172,20 @@ void draw_4block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
 void draw_line (SDL_Surface *screen, Uint32 x1, Uint32 y1, Uint32 x2, Uint32 y2,
                 Uint32 color)
 {
-   Uint8 R = RVAL(color);
-   Uint8 G = GVAL(color);
-   Uint8 B = BVAL(color);
-
+   unsigned int bpp = best_color_depth()/8;
    Uint32 i;
 
    if (x1 == x2)
    {
       /* vertical line */
       for (i = y1; i <= y2; i++)
-         draw_pixel (screen, R, G, B, x1, i);
+         draw_pixel (screen, bpp, color, x1, i);
    }
    else if (y1 == y2)
    {
       /* horizontal line */
       for (i = x1; i <= x2; i++)
-         draw_pixel (screen, R, G, B, i, y1);
+         draw_pixel (screen, bpp, color, i, y1);
    }
    else
       return;
@@ -188,10 +227,7 @@ void init_screen (SDL_Surface *screen)
 void x_out_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)
 {
    Uint32 i;
-
-   Uint8 R = RVAL(WHITE);
-   Uint8 G = GVAL(WHITE);
-   Uint8 B = BVAL(WHITE);
+   unsigned int bpp = best_color_depth()/8;
 
    /* Make sure to lock before drawing. */
    if (SDL_MUSTLOCK(screen))
@@ -201,10 +237,10 @@ void x_out_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)
    }
 
    for (i = 0; i < BLOCK_SIZE; i++)
-      draw_pixel (screen, R, G, B, base_x+i, base_y+i);
+      draw_pixel (screen, bpp, WHITE, base_x+i, base_y+i);
 
    for (i = 0; i < BLOCK_SIZE; i++)
-      draw_pixel (screen, R, G, B, base_x+i, base_y+BLOCK_SIZE-i);
+      draw_pixel (screen, bpp, WHITE, base_x+i, base_y+BLOCK_SIZE-i);
 
    /* Give up the lock. */
    if (SDL_MUSTLOCK(screen))
