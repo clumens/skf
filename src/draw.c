@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.9 2005/05/08 20:08:39 chris Exp $ */
+/* $Id: draw.c,v 1.10 2005/05/09 02:47:26 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -31,16 +31,54 @@
  * calling this function.
  */
 static void __inline__ draw_pixel (SDL_Surface *screen, Uint8 R, Uint8 G,
-                                   Uint8 B, unsigned int x, unsigned int y)
+                                   Uint8 B, Uint32 x, Uint32 y)
 {
    Uint32 *bufp = (Uint32 *) screen->pixels + y*screen->pitch/4 + x;
    *bufp = SDL_MapRGB(screen->format, R, G, B);
+}
+
+static Uint32 __inline__ get_pixel (SDL_Surface *screen, Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + y * screen->pitch + x * 4;
+   return *(Uint32 *)p;
 }
 
 /* +=====================================================================+
  * | PUBLIC FUNCTIONS                                                    |
  * +=====================================================================+
  */
+void copy_block (SDL_Surface *screen, Uint32 src_x, Uint32 src_y,
+                 Uint32 dest_x, Uint32 dest_y)
+{
+   int x, y;
+
+   /* Make sure to lock before drawing. */
+   if (SDL_MUSTLOCK(screen))
+   {
+      if (SDL_LockSurface(screen) < 0)
+         return;
+   }
+
+   /* Copy all the pixels. */
+   for (y = 0; y < BLOCK_SIZE; y++)
+   {
+      for (x = 0; x < BLOCK_SIZE; x++)
+      {
+         Uint32 color = get_pixel (screen, src_x+x, src_y+y);
+
+         draw_pixel (screen, RVAL(color), GVAL(color), BVAL(color),
+                     dest_x+x, dest_y+y);
+      }
+   }
+
+   /* Give up the lock. */
+   if (SDL_MUSTLOCK(screen))
+      SDL_UnlockSurface(screen);
+
+   /* Update the rectangular region we just drew. */
+   SDL_UpdateRect (screen, dest_x, dest_y, BLOCK_SIZE, BLOCK_SIZE);
+}
+
 void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
                  Uint32 color)
 {

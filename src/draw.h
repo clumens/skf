@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.10 2005/05/08 20:08:39 chris Exp $
+/* $Id: draw.h,v 1.11 2005/05/09 02:47:26 chris Exp $
  *
  * Basic drawing functions for the skf block-based demo.
  *
@@ -29,6 +29,12 @@
 #define _DRAW_H 1
 
 #include <SDL/SDL.h>
+
+/* Copy a block from (src_x, src_y) to (dest_x, dest_y).  screen must not be
+ * locked.
+ */
+void copy_block (SDL_Surface *screen, Uint32 src_x, Uint32 src_y, Uint32 dest_x,
+                 Uint32 dest_y);
 
 /* Draw one block starting at pixels (base_x, base_y) to screen using the
  * given color.  screen must not be locked.
