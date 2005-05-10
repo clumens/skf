@@ -1,0 +1,41 @@
+gameplay
+========
+- Blocks currently always drop from the middle, but should pick a random
+  starting X coordinate.
+- Full lines currently always disappear.  Instead, we should apply a
+  probability distribtion to the full lines so that they disappear
+  eventually but not necessarily as soon as they are filled.
+- Some sort of punishment for clearing out the board after the initial
+  block has been dropped.
+- Visible timer counting up from when the game was started, to let you
+  know how long you've been playing.
+- Properly detect end of game.
+- Blocks should fall at random speeds.
+- Ability to very briefly move the block sideways once it's landed?
+- Rotate blocks.
+
+
+graphics
+========
+- Need to enable HW acceleration if at all possible  (I know basically how
+  to do this, but xinerama doesn't get along with hardware acceleration so
+  I don't really have a way to test it out right now.)
+- Make a better layout for the main playing screen complete with borders
+  and things like that.
+- The blocks are really ugly.  They need to be pictures of random shapes.
+  We're not going to be constrained to tetris block shapes, either.  The
+  current blocks are just temporary to test everything else out.
+- Some sort of welcome/credits/whatever intro screen.
+- Better line disappearing effect.
+
+
+sound
+=====
+- Sound effects for landing, rotating, deleting, etc.
+- Really tedious music.
+
+
+misc
+====
+- port to Windows
+- port to MacOS X
