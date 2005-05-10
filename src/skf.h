@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.5 2005/05/09 23:04:01 chris Exp $ */
+/* $Id: skf.h,v 1.6 2005/05/10 03:42:17 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -35,6 +35,32 @@
 /* Size of the entire window we want to draw. */
 #define SKF_XRES  SKF_FIELD_XRES
 #define SKF_YRES  SKF_FIELD_YRES
+
+/* A type representing which sections of the playing field have blocks in
+ * them and which do not.  The falling block is not represented.
+ */
+typedef int field_t[X_BLOCKS][Y_BLOCKS];
+
+/* A type representing a falling block. */
+typedef struct block_t {
+   unsigned int new;
+   int x, y;
+   int dx, dy;
+   Uint32 color;
+
+   unsigned int (* collides)(struct block_t *block, field_t *field);
+   void (* draw)(struct block_t *block, SDL_Surface *screen);
+   void (* erase)(struct block_t *block, SDL_Surface *screen);
+   unsigned int (* landed)(struct block_t *block, field_t *field);
+   void (* lock)(struct block_t *block, field_t *field);
+   unsigned int (* move_sideways)(struct block_t *block);
+} block_t;
+
+/* Various game state variables. */
+typedef struct {
+   SDL_TimerID drop_timer_id;
+   field_t     field;
+} state_t;
 
 /* Returns the best color depth available in bits per pixel. */
 Uint32 best_color_depth();

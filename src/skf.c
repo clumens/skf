@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.15 2005/05/09 23:04:01 chris Exp $ */
+/* $Id: skf.c,v 1.16 2005/05/10 03:42:17 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -21,28 +21,10 @@
 #include <time.h>
 #include <SDL/SDL.h>
 
+#include "blocks.h"
 #include "colors.h"
 #include "draw.h"
 #include "skf.h"
-
-/* A type representing which sections of the playing field have blocks in
- * them and which do not.  The falling block is not represented.
- */
-typedef int field_t[X_BLOCKS][Y_BLOCKS];
-
-/* A type representing a falling block. */
-typedef struct {
-   unsigned int new;
-   int x, y;
-   int dx, dy;
-   Uint32 color;
-} block_t;
-
-/* Various game state variables. */
-typedef struct {
-   SDL_TimerID drop_timer_id;
-   field_t     field;
-} state_t;
 
 /* Types for user-defined events. */
 #define EVT_DROP     0
@@ -51,17 +33,13 @@ typedef struct {
 /* Forward declarations are easier than making sure everything's in the right
  * order.
  */
-Uint32 drop_timer_cb (Uint32 interval, void *params);
-Uint32 __inline__ best_color_depth();
-unsigned int __inline__ have_wm();
-unsigned int __inline__ landed (field_t *field, int x, int y);
-void update_block (SDL_Surface *screen, field_t *field, block_t *block);
-void init_field (field_t *field);
-void __inline__ lock_field_region (field_t *field, block_t *block);
 void drop_field (SDL_Surface *screen, state_t *state, int lowest_y);
+Uint32 drop_timer_cb (Uint32 interval, void *params);
+void init_field (field_t *field);
 unsigned int __inline__ line_empty (field_t *field, int line);
 unsigned int __inline__ line_full (field_t *field, int line);
 void check_full_lines (SDL_Surface *screen, state_t *state, int lowest_y);
+void update_block (SDL_Surface *screen, field_t *field, block_t *block);
 
 /* +================================================================+
  * | CALLBACKS                                                      |
@@ -118,37 +96,21 @@ unsigned int have_wm()
  * +================================================================+
  */
 
-/* Is there anything underneath the currently falling block starting at block
- * coordinate (x, y)?
- */
-unsigned int __inline__ landed (field_t *field, int x, int y)
-{
-   if (y == Y_BLOCKS-2 || (*field)[x][y+2] == 1 || (*field)[x+1][y+2] == 1)
-      return 1;
-   else
-      return 0;
-}
-
 /* Update the position of the currently dropping block on the playing field. */
 void update_block (SDL_Surface *screen, field_t *field, block_t *block)
 {
-   int new_x, new_y;
-
-   if (landed (field, block->x, 0))
+#if 0
+   if (block->landed (block, field))
    {
       fprintf (stderr, "game over\n");
       exit(0);
    }
+#endif
 
    /* Make sure the requested move makes sense before doing all the junk
     * below.
     */
-   new_x = block->x + block->dx;
-   new_y = block->y + block->dy;
-
-   if (new_x < 0 || new_x > X_BLOCKS-2 || (*field)[new_x][new_y] == 1 ||
-       (*field)[new_x+1][new_y] == 1 || (*field)[new_x][new_y+1] == 1 ||
-       (*field)[new_x+1][new_y+1] == 1)
+   if (!block->move_sideways (block) || block->collides (block, field))
       return;
 
    /* Only try to erase the previous position if it's not a new block.  If it's
@@ -159,18 +121,18 @@ void update_block (SDL_Surface *screen, field_t *field, block_t *block)
    else
    {
       /* Erase the previous position of the block. */
-      erase_4block (screen, block->x*BLOCK_SIZE, block->y*BLOCK_SIZE);
-      block->y = new_y;
+      block->erase (block, screen);
+      block->y += block->dy;
    }
 
    /* Update x position, making sure the new position makes sense. */
-   block->x = new_x;
+   block->x += block->dx;
 
    /* Draw the block in its new position. */
-   draw_4block (screen, block->x*BLOCK_SIZE, block->y*BLOCK_SIZE, block->color);
+   block->draw (block, screen);
 
    /* If the block landed somewhere, reset for dropping the next one. */
-   if (landed (field, block->x, block->y))
+   if (block->landed (block, field))
    {
       SDL_Event evt;
 
@@ -199,14 +161,6 @@ void init_field (field_t *field)
       for (x = 0; x < X_BLOCKS; x++)
          (*field)[x][y] = 0;
    }
-}
-
-void __inline__ lock_field_region (field_t *field, block_t *block)
-{
-   (*field)[block->x][block->y] = 1;
-   (*field)[block->x+1][block->y] = 1;
-   (*field)[block->x][block->y+1] = 1;
-   (*field)[block->x+1][block->y+1] = 1;
 }
 
 void drop_field (SDL_Surface *screen, state_t *state, int lowest_y)
@@ -298,7 +252,7 @@ int main (int argc, char **argv)
    SDL_Surface *screen;
    SDL_Event evt;
    state_t state;
-   block_t block = { 1, (X_BLOCKS-1) / 2, 0, 0, 0, BLUE };
+   block_t block;
 
    /* Seed RNG for picking random colors, among other things. */
    srand (time(NULL));
@@ -323,6 +277,7 @@ int main (int argc, char **argv)
    if (have_wm())
       SDL_WM_SetCaption("shit keeps falling - v.20050509", "skf");
 
+   init_4block(&block);
    init_field(&state.field);
    init_screen(screen);
 
@@ -374,9 +329,11 @@ int main (int argc, char **argv)
                   update_block (screen, &state.field, &block);
                   break;
 
-               case EVT_LAND:
+               case EVT_LAND: {
+                  unsigned int n = 1+(int)(10.0*rand()/(RAND_MAX+1.0));
+
                   /* Make sure that chunk of the field is in use. */
-                  lock_field_region (&state.field, &block);
+                  block.lock (&block, &state.field);
 
                   /* Can we kill a full line?  We only have to start at the
                    * bottom end of the block that just landed.
@@ -384,13 +341,13 @@ int main (int argc, char **argv)
                   check_full_lines (screen, &state, block.y+1);
 
                   /* Create a new block. */
-                  block.new = 1;
-                  block.x = (X_BLOCKS-1) / 2;
-                  block.y = 0;
-                  block.dx = 0;
-                  block.dy = 0;
-                  block.color = rand_color();
+                  if (n % 2 == 0)
+                     init_4block (&block);
+                  else
+                     init_sblock (&block);
+
                   break;
+               }
             }
 
             break;
