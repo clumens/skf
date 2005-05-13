@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.6 2005/05/10 03:42:17 chris Exp $ */
+/* $Id: skf.h,v 1.7 2005/05/13 18:04:55 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -44,6 +44,7 @@ typedef int field_t[X_BLOCKS][Y_BLOCKS];
 /* A type representing a falling block. */
 typedef struct block_t {
    unsigned int new;
+   int width, height;
    int x, y;
    int dx, dy;
    Uint32 color;
@@ -53,7 +54,7 @@ typedef struct block_t {
    void (* erase)(struct block_t *block, SDL_Surface *screen);
    unsigned int (* landed)(struct block_t *block, field_t *field);
    void (* lock)(struct block_t *block, field_t *field);
-   unsigned int (* move_sideways)(struct block_t *block);
+   unsigned int (* may_move_sideways)(struct block_t *block);
 } block_t;
 
 /* Various game state variables. */
@@ -67,5 +68,8 @@ Uint32 best_color_depth();
 
 /* Do we have a window manager available? */
 unsigned int have_wm();
+
+/* Generate a random number from 0 to max. */
+unsigned int rnd (float max);
 
 #endif

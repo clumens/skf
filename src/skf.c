@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.16 2005/05/10 03:42:17 chris Exp $ */
+/* $Id: skf.c,v 1.17 2005/05/13 18:04:55 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -33,13 +33,14 @@
 /* Forward declarations are easier than making sure everything's in the right
  * order.
  */
-void drop_field (SDL_Surface *screen, state_t *state, int lowest_y);
-Uint32 drop_timer_cb (Uint32 interval, void *params);
-void init_field (field_t *field);
-unsigned int __inline__ line_empty (field_t *field, int line);
-unsigned int __inline__ line_full (field_t *field, int line);
-void check_full_lines (SDL_Surface *screen, state_t *state, int lowest_y);
-void update_block (SDL_Surface *screen, field_t *field, block_t *block);
+static void drop_field (SDL_Surface *screen, state_t *state, int lowest_y);
+static Uint32 drop_timer_cb (Uint32 interval, void *params);
+static void init_field (field_t *field);
+static unsigned int __inline__ line_empty (field_t *field, int line);
+static unsigned int __inline__ line_full (field_t *field, int line);
+static void check_full_lines (SDL_Surface *screen, state_t *state,
+                              int lowest_y);
+static void update_block (SDL_Surface *screen, field_t *field, block_t *block);
 
 /* +================================================================+
  * | CALLBACKS                                                      |
@@ -50,7 +51,7 @@ void update_block (SDL_Surface *screen, field_t *field, block_t *block);
  * it will be processed to do the drawing.  We're not supposed to call functions
  * from within the callback (stupid interrupt handler model).
  */
-Uint32 drop_timer_cb (Uint32 interval, void *params)
+static Uint32 drop_timer_cb (Uint32 interval, void *params)
 {
    SDL_Event evt;
 
@@ -97,7 +98,7 @@ unsigned int have_wm()
  */
 
 /* Update the position of the currently dropping block on the playing field. */
-void update_block (SDL_Surface *screen, field_t *field, block_t *block)
+static void update_block (SDL_Surface *screen, field_t *field, block_t *block)
 {
 #if 0
    if (block->landed (block, field))
@@ -110,7 +111,7 @@ void update_block (SDL_Surface *screen, field_t *field, block_t *block)
    /* Make sure the requested move makes sense before doing all the junk
     * below.
     */
-   if (!block->move_sideways (block) || block->collides (block, field))
+   if (!block->may_move_sideways (block) || block->collides (block, field))
       return;
 
    /* Only try to erase the previous position if it's not a new block.  If it's
@@ -152,7 +153,7 @@ void update_block (SDL_Surface *screen, field_t *field, block_t *block)
 /* Initialize the playing field array by clearing out all positions where a
  * block could be.
  */
-void init_field (field_t *field)
+static void init_field (field_t *field)
 {
    int x, y;
 
@@ -163,7 +164,7 @@ void init_field (field_t *field)
    }
 }
 
-void drop_field (SDL_Surface *screen, state_t *state, int lowest_y)
+static void drop_field (SDL_Surface *screen, state_t *state, int lowest_y)
 {
    int x, y;
 
@@ -190,7 +191,7 @@ void drop_field (SDL_Surface *screen, state_t *state, int lowest_y)
  * +================================================================+
  */
 
-unsigned int __inline__ line_empty (field_t *field, int line)
+static unsigned int __inline__ line_empty (field_t *field, int line)
 {
    int i;
 
@@ -203,7 +204,7 @@ unsigned int __inline__ line_empty (field_t *field, int line)
    return 1;
 }
 
-unsigned int __inline__ line_full (field_t *field, int line)
+static unsigned int __inline__ line_full (field_t *field, int line)
 {
    int i;
 
@@ -216,7 +217,7 @@ unsigned int __inline__ line_full (field_t *field, int line)
    return 1;
 }
 
-void check_full_lines (SDL_Surface *screen, state_t *state, int lowest_y)
+static void check_full_lines (SDL_Surface *screen, state_t *state, int lowest_y)
 {
    int x, y = lowest_y;
 
@@ -245,6 +246,16 @@ void check_full_lines (SDL_Surface *screen, state_t *state, int lowest_y)
 
    /* Add the drop timer back in now that we're done. */
    state->drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
+}
+
+/* +================================================================+
+ * | MISCELLANEOUS FUNCTIONS                                        |
+ * +================================================================+
+ */
+
+unsigned int rnd (float max)
+{
+   return (unsigned int) (max*rand()/RAND_MAX);
 }
 
 int main (int argc, char **argv)
@@ -330,7 +341,7 @@ int main (int argc, char **argv)
                   break;
 
                case EVT_LAND: {
-                  unsigned int n = 1+(int)(10.0*rand()/(RAND_MAX+1.0));
+                  unsigned int n = rnd(10);
 
                   /* Make sure that chunk of the field is in use. */
                   block.lock (&block, &state.field);
@@ -338,7 +349,7 @@ int main (int argc, char **argv)
                   /* Can we kill a full line?  We only have to start at the
                    * bottom end of the block that just landed.
                    */
-                  check_full_lines (screen, &state, block.y+1);
+                  check_full_lines (screen, &state, block.x+block.height-1);
 
                   /* Create a new block. */
                   if (n % 2 == 0)

@@ -1,4 +1,4 @@
-/* $Id: 4block.c,v 1.1 2005/05/10 03:42:16 chris Exp $ */
+/* $Id: 4block.c,v 1.2 2005/05/13 18:04:54 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -87,10 +87,11 @@ static unsigned int move_sideways_4block (block_t *block)
 void init_4block (block_t *block)
 {
    block->new = 1;
-   block->x = (X_BLOCKS-1) / 2;
+   block->width = 2;
+   block->height = 2;
+   block->x = rnd (X_BLOCKS-block->width);
    block->y = 0;
-   block->dx = 0;
-   block->dy = 0;
+   block->dx = block->dy = 0;
    block->color = rand_color();
 
    block->collides = collides_4block;
@@ -98,5 +99,5 @@ void init_4block (block_t *block)
    block->erase = erase_4block;
    block->landed = landed_4block;
    block->lock = lock_region_4block;
-   block->move_sideways = move_sideways_4block;
+   block->may_move_sideways = move_sideways_4block;
 }

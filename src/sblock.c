@@ -1,4 +1,4 @@
-/* $Id: sblock.c,v 1.1 2005/05/10 03:42:17 chris Exp $ */
+/* $Id: sblock.c,v 1.2 2005/05/13 18:04:54 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -86,10 +86,11 @@ static unsigned int move_sideways_sblock (block_t *block)
 void init_sblock (block_t *block)
 {
    block->new = 1;
-   block->x = (X_BLOCKS-1) / 2;
+   block->width = 1;
+   block->height = 4;
+   block->x = rnd(X_BLOCKS-block->width);
    block->y = 0;
-   block->dx = 0;
-   block->dy = 0;
+   block->dx = block->dy = 0;
    block->color = rand_color();
 
    block->collides = collides_sblock;
@@ -97,5 +98,5 @@ void init_sblock (block_t *block)
    block->erase = erase_sblock;
    block->landed = landed_sblock;
    block->lock = lock_region_sblock;
-   block->move_sideways = move_sideways_sblock;
+   block->may_move_sideways = move_sideways_sblock;
 }

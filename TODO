@@ -1,7 +1,5 @@
 gameplay
 ========
-- Blocks currently always drop from the middle, but should pick a random
-  starting X coordinate.
 - Full lines currently always disappear.  Instead, we should apply a
   probability distribtion to the full lines so that they disappear
   eventually but not necessarily as soon as they are filled.
@@ -13,6 +11,7 @@ gameplay
 - Blocks should fall at random speeds.
 - Ability to very briefly move the block sideways once it's landed?
 - Rotate blocks.
+- Rotate rows by a random amount when a line is removed.
 
 
 graphics

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 2005/05/10 03:42:17 chris Exp $
+# $Id: Makefile,v 1.7 2005/05/13 18:04:54 chris Exp $
 
 CC = gcc
 CFLAGS = -O2 -Wall `sdl-config --cflags`
@@ -21,7 +21,7 @@ clean:
 	blocks.h colors.h draw.h skf.h
 
 colors.o: colors.c \
-	colors.h
+	colors.h skf.h
 
 draw.o: draw.c \
 	colors.h draw.h skf.h
