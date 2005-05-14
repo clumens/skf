@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.12 2005/05/10 03:42:17 chris Exp $ */
+/* $Id: draw.c,v 1.13 2005/05/14 16:20:21 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -16,6 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#include <stdlib.h>
 #include <SDL/SDL.h>
 
 #include "colors.h"
@@ -188,6 +189,32 @@ void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)
 
    SDL_FillRect (screen, &r, GREY);
    SDL_UpdateRect (screen, base_x, base_y, BLOCK_SIZE, BLOCK_SIZE);
+}
+
+void flip (SDL_Surface *src, SDL_Surface *dest, Uint32 x, Uint32 y,
+           Uint32 width, Uint32 height)
+{
+   SDL_Rect *src_rect, *dest_rect;
+
+   if (x == 0 && y == 0 && width == 0 && height == 0)
+   {
+      src_rect = malloc (sizeof(SDL_Rect));
+      dest_rect = malloc (sizeof(SDL_Rect));
+
+      src_rect->x = dest_rect->x = x;
+      src_rect->y = dest_rect->y = y;
+      src_rect->w = width;
+      src_rect->h = height;
+
+      SDL_BlitSurface (src, src_rect, dest, dest_rect);
+
+      free(src_rect);
+      free(dest_rect);
+   }
+   else
+      SDL_BlitSurface (src, NULL, dest, NULL);
+
+   SDL_UpdateRect (dest, 0, 0, 0, 0);
 }
 
 void init_screen (SDL_Surface *screen)

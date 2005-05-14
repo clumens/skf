@@ -1,4 +1,4 @@
-/* $Id: 4block.c,v 1.2 2005/05/13 18:04:54 chris Exp $ */
+/* $Id: 4block.c,v 1.3 2005/05/14 16:20:21 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -28,8 +28,9 @@
  * +=====================================================================+
  */
 
-static unsigned int collides_4block (block_t *block, field_t *field)
+static unsigned int collides_4block (block_t *block, state_t *state)
 {
+   field_t *field = &state->field;
    int new_x = block->x + block->dx;
    int new_y = block->y + block->dy;
 
@@ -60,8 +61,9 @@ static void erase_4block (block_t *block, SDL_Surface *screen)
    erase_block (screen, base_x+BLOCK_SIZE, base_y+BLOCK_SIZE);
 }
 
-static unsigned int landed_4block (block_t *block, field_t *field)
+static unsigned int landed_4block (block_t *block, state_t *state)
 {
+   field_t *field = &state->field;
    return block->y == Y_BLOCKS-2 || (*field)[block->x][block->y+2] == 1 ||
           (*field)[block->x+1][block->y+2] == 1;
 }

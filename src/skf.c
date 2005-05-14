@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.17 2005/05/13 18:04:55 chris Exp $ */
+/* $Id: skf.c,v 1.18 2005/05/14 16:20:21 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -33,14 +33,13 @@
 /* Forward declarations are easier than making sure everything's in the right
  * order.
  */
-static void drop_field (SDL_Surface *screen, state_t *state, int lowest_y);
+static void drop_field (state_t *state, int lowest_y);
 static Uint32 drop_timer_cb (Uint32 interval, void *params);
 static void init_field (field_t *field);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
-static void check_full_lines (SDL_Surface *screen, state_t *state,
-                              int lowest_y);
-static void update_block (SDL_Surface *screen, field_t *field, block_t *block);
+static void check_full_lines (state_t *state, int lowest_y);
+static void update_block (state_t *state, block_t *block);
 
 /* +================================================================+
  * | CALLBACKS                                                      |
@@ -98,7 +97,7 @@ unsigned int have_wm()
  */
 
 /* Update the position of the currently dropping block on the playing field. */
-static void update_block (SDL_Surface *screen, field_t *field, block_t *block)
+static void update_block (state_t *state, block_t *block)
 {
 #if 0
    if (block->landed (block, field))
@@ -111,7 +110,8 @@ static void update_block (SDL_Surface *screen, field_t *field, block_t *block)
    /* Make sure the requested move makes sense before doing all the junk
     * below.
     */
-   if (!block->may_move_sideways (block) || block->collides (block, field))
+   if (!block->may_move_sideways (block) ||
+        block->collides (block, state))
       return;
 
    /* Only try to erase the previous position if it's not a new block.  If it's
@@ -122,7 +122,7 @@ static void update_block (SDL_Surface *screen, field_t *field, block_t *block)
    else
    {
       /* Erase the previous position of the block. */
-      block->erase (block, screen);
+      block->erase (block, state->back);
       block->y += block->dy;
    }
 
@@ -130,10 +130,12 @@ static void update_block (SDL_Surface *screen, field_t *field, block_t *block)
    block->x += block->dx;
 
    /* Draw the block in its new position. */
-   block->draw (block, screen);
+   block->draw (block, state->back);
+   flip (state->back, state->front, block->x-block->dx, block->y-block->dy,
+         block->dx, block->dy);
 
    /* If the block landed somewhere, reset for dropping the next one. */
-   if (block->landed (block, field))
+   if (block->landed (block, state))
    {
       SDL_Event evt;
 
@@ -164,7 +166,7 @@ static void init_field (field_t *field)
    }
 }
 
-static void drop_field (SDL_Surface *screen, state_t *state, int lowest_y)
+static void drop_field (state_t *state, int lowest_y)
 {
    int x, y;
 
@@ -173,7 +175,7 @@ static void drop_field (SDL_Surface *screen, state_t *state, int lowest_y)
       for (x = 0; x < X_BLOCKS; x++)
       {
          (state->field)[x][y] = (state->field)[x][y-1];
-         copy_block (screen, x*BLOCK_SIZE, (y-1)*BLOCK_SIZE, x*BLOCK_SIZE,
+         copy_block (state->back, x*BLOCK_SIZE, (y-1)*BLOCK_SIZE, x*BLOCK_SIZE,
                      y*BLOCK_SIZE);
       }
    }
@@ -182,8 +184,10 @@ static void drop_field (SDL_Surface *screen, state_t *state, int lowest_y)
    for (x = 0; x < X_BLOCKS; x++)
    {
       (state->field)[x][0] = 0;
-      erase_block (screen, x*BLOCK_SIZE, 0);
+      erase_block (state->back, x*BLOCK_SIZE, 0);
    }
+
+   flip (state->back, state->front, 0, 0, SKF_XRES, lowest_y*BLOCK_SIZE);
 }
 
 /* +================================================================+
@@ -217,7 +221,7 @@ static unsigned int __inline__ line_full (field_t *field, int line)
    return 1;
 }
 
-static void check_full_lines (SDL_Surface *screen, state_t *state, int lowest_y)
+static void check_full_lines (state_t *state, int lowest_y)
 {
    int x, y = lowest_y;
 
@@ -232,13 +236,16 @@ static void check_full_lines (SDL_Surface *screen, state_t *state, int lowest_y)
       if (line_full (&(state->field), y))
       {
          for (x = 0; x < X_BLOCKS; x++)
-            x_out_block (screen, x*BLOCK_SIZE, y*BLOCK_SIZE);
+            x_out_block (state->back, x*BLOCK_SIZE, y*BLOCK_SIZE);
+
+         flip (state->back, state->front, x*BLOCK_SIZE, y*BLOCK_SIZE, SKF_XRES,
+               BLOCK_SIZE);
 
          /* Pause briefly so people see what's happening. */
          SDL_Delay (200);
 
          /* Drop down the lines above this one. */
-         drop_field (screen, state, y);
+         drop_field (state, y);
       }
       else
          y--;
@@ -260,7 +267,6 @@ unsigned int rnd (float max)
 
 int main (int argc, char **argv)
 {
-   SDL_Surface *screen;
    SDL_Event evt;
    state_t state;
    block_t block;
@@ -276,12 +282,25 @@ int main (int argc, char **argv)
 
    atexit (SDL_Quit);
 
-   screen = SDL_SetVideoMode (SKF_XRES, SKF_YRES, best_color_depth(),
-                              SDL_HWSURFACE|SDL_DOUBLEBUF);
+   state.front = SDL_SetVideoMode (SKF_XRES, SKF_YRES, best_color_depth(),
+                                   SDL_SWSURFACE);
 
-   if (screen == NULL)
+   if (state.front == NULL)
    {
-      fprintf (stderr, "Unable to set video mode: %s\n", SDL_GetError());
+      fprintf (stderr, "Unable to create front surface: %s\n", SDL_GetError());
+      exit(1);
+   }
+
+   state.back = SDL_CreateRGBSurface (SDL_SWSURFACE, SKF_XRES, SKF_YRES,
+                                      state.front->format->BitsPerPixel,
+                                      state.front->format->Rmask,
+                                      state.front->format->Gmask,
+                                      state.front->format->Bmask,
+                                      state.front->format->Amask);
+
+   if (state.back == NULL)
+   {
+      fprintf (stderr, "Unable to create back surface: %s\n", SDL_GetError());
       exit(1);
    }
 
@@ -290,7 +309,8 @@ int main (int argc, char **argv)
 
    init_4block(&block);
    init_field(&state.field);
-   init_screen(screen);
+   init_screen(state.back);
+   flip (state.back, state.front, 0, 0, 0, 0);
 
    /* Set up a callback to update the playing field every so often. */
    if ((state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL)) == NULL)
@@ -311,19 +331,19 @@ int main (int argc, char **argv)
                case SDLK_LEFT:
                   block.dx = -1;
                   block.dy = 0;
-                  update_block (screen, &state.field, &block);
+                  update_block (&state, &block);
                   break;
 
                case SDLK_RIGHT:
                   block.dx = 1;
                   block.dy = 0;
-                  update_block (screen, &state.field, &block);
+                  update_block (&state, &block);
                   break;
 
                case SDLK_DOWN:
                   block.dx = 0;
                   block.dy = 1;
-                  update_block (screen, &state.field, &block);
+                  update_block (&state, &block);
                   break;
 
                default:
@@ -337,7 +357,7 @@ int main (int argc, char **argv)
                case EVT_DROP:
                   block.dx = 0;
                   block.dy = 1;
-                  update_block (screen, &state.field, &block);
+                  update_block (&state, &block);
                   break;
 
                case EVT_LAND: {
@@ -349,7 +369,7 @@ int main (int argc, char **argv)
                   /* Can we kill a full line?  We only have to start at the
                    * bottom end of the block that just landed.
                    */
-                  check_full_lines (screen, &state, block.x+block.height-1);
+                  check_full_lines (&state, block.y+block.height-1);
 
                   /* Create a new block. */
                   if (n % 2 == 0)

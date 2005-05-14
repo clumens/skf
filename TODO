@@ -16,9 +16,7 @@ gameplay
 
 graphics
 ========
-- Need to enable HW acceleration if at all possible  (I know basically how
-  to do this, but xinerama doesn't get along with hardware acceleration so
-  I don't really have a way to test it out right now.)
+- Enable HW acceleration?
 - Make a better layout for the main playing screen complete with borders
   and things like that.
 - The blocks are really ugly.  They need to be pictures of random shapes.
