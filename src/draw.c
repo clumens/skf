@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.13 2005/05/14 16:20:21 chris Exp $ */
+/* $Id: draw.c,v 1.14 2005/05/14 20:09:46 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -191,29 +191,30 @@ void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)
    SDL_UpdateRect (screen, base_x, base_y, BLOCK_SIZE, BLOCK_SIZE);
 }
 
-void flip (SDL_Surface *src, SDL_Surface *dest, Uint32 x, Uint32 y,
-           Uint32 width, Uint32 height)
+void flip_region (SDL_Surface *src, SDL_Surface *dest, Uint32 x, Uint32 y,
+                  Uint32 width, Uint32 height)
 {
    SDL_Rect *src_rect, *dest_rect;
 
-   if (x == 0 && y == 0 && width == 0 && height == 0)
-   {
-      src_rect = malloc (sizeof(SDL_Rect));
-      dest_rect = malloc (sizeof(SDL_Rect));
+   src_rect = malloc (sizeof(SDL_Rect));
+   dest_rect = malloc (sizeof(SDL_Rect));
 
-      src_rect->x = dest_rect->x = x;
-      src_rect->y = dest_rect->y = y;
-      src_rect->w = width;
-      src_rect->h = height;
+   src_rect->x = dest_rect->x = x;
+   src_rect->y = dest_rect->y = y;
+   src_rect->w = width;
+   src_rect->h = height;
 
-      SDL_BlitSurface (src, src_rect, dest, dest_rect);
+   SDL_BlitSurface (src, src_rect, dest, dest_rect);
 
-      free(src_rect);
-      free(dest_rect);
-   }
-   else
-      SDL_BlitSurface (src, NULL, dest, NULL);
+   free(src_rect);
+   free(dest_rect);
 
+   SDL_UpdateRect (dest, x, y, width, height);
+}
+
+void flip_screen (SDL_Surface *src, SDL_Surface *dest)
+{
+   SDL_BlitSurface (src, NULL, dest, NULL);
    SDL_UpdateRect (dest, 0, 0, 0, 0);
 }
 
@@ -232,6 +233,37 @@ void init_screen (SDL_Surface *screen)
    /* Give up the lock. */
    if (SDL_MUSTLOCK(screen))
       SDL_UnlockSurface(screen);
+}
+
+SDL_Surface *save_region (SDL_Surface *src, Uint32 base_x, Uint32 base_y,
+                          Uint32 width, Uint32 height)
+{
+   SDL_Surface *retval;
+   SDL_Rect *src_rect;
+
+   /* Create the new surface with the same parameters as the source. */
+   retval = SDL_CreateRGBSurface (SDL_SWSURFACE, width, height,
+                                  src->format->BitsPerPixel, src->format->Rmask,
+                                  src->format->Gmask, src->format->Bmask,
+                                  src->format->Amask);
+
+   src_rect = malloc (sizeof(SDL_Rect));
+   src_rect->x = base_x;
+   src_rect->y = base_y;
+   src_rect->w = width;
+   src_rect->h = height;
+
+   if (SDL_BlitSurface (src, src_rect, retval, NULL) == -1)
+   {
+      SDL_FreeSurface (retval);
+      free(src_rect);
+      return NULL;
+   }
+   else
+   {
+      free(src_rect);
+      return retval;
+   }
 }
 
 void x_out_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y)

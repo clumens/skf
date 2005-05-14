@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.18 2005/05/14 16:20:21 chris Exp $ */
+/* $Id: skf.c,v 1.19 2005/05/14 20:09:47 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -131,8 +131,7 @@ static void update_block (state_t *state, block_t *block)
 
    /* Draw the block in its new position. */
    block->draw (block, state->back);
-   flip (state->back, state->front, block->x-block->dx, block->y-block->dy,
-         block->dx, block->dy);
+   flip_screen (state->back, state->front);
 
    /* If the block landed somewhere, reset for dropping the next one. */
    if (block->landed (block, state))
@@ -187,7 +186,7 @@ static void drop_field (state_t *state, int lowest_y)
       erase_block (state->back, x*BLOCK_SIZE, 0);
    }
 
-   flip (state->back, state->front, 0, 0, SKF_XRES, lowest_y*BLOCK_SIZE);
+   flip_screen (state->back, state->front);
 }
 
 /* +================================================================+
@@ -224,6 +223,7 @@ static unsigned int __inline__ line_full (field_t *field, int line)
 static void check_full_lines (state_t *state, int lowest_y)
 {
    int x, y = lowest_y;
+   unsigned int removed_lines = 0;
 
    /* First, kill the drop timer since we don't want new blocks falling
     * while we might possibly be checking the board.
@@ -235,11 +235,13 @@ static void check_full_lines (state_t *state, int lowest_y)
       /* There are blocks all the way across this row.  X them out. */
       if (line_full (&(state->field), y))
       {
+         removed_lines = 1;
+
          for (x = 0; x < X_BLOCKS; x++)
             x_out_block (state->back, x*BLOCK_SIZE, y*BLOCK_SIZE);
 
-         flip (state->back, state->front, x*BLOCK_SIZE, y*BLOCK_SIZE, SKF_XRES,
-               BLOCK_SIZE);
+         flip_region (state->back, state->front, 0, y*BLOCK_SIZE, SKF_XRES,
+                      BLOCK_SIZE);
 
          /* Pause briefly so people see what's happening. */
          SDL_Delay (200);
@@ -249,6 +251,66 @@ static void check_full_lines (state_t *state, int lowest_y)
       }
       else
          y--;
+   }
+
+   /* Now that we've removed lines, possibly shift all the blocks on the screen
+    * by up to 3 positions.
+    */
+   if (removed_lines)
+   {
+      unsigned int n = rnd(3);
+
+      while (n > 0)
+      {
+         SDL_Surface *col_surface, *blk_surface;
+         SDL_Rect rect;
+         int tmp[Y_BLOCKS];
+         unsigned int y, x;
+
+         /* Make a copy of the leftmost column. */
+         col_surface = save_region (state->back, 0, 0, BLOCK_SIZE,
+                                    SKF_FIELD_YRES);
+         for (y = 0; y < Y_BLOCKS; y++)
+            tmp[y] = state->field[0][y];
+
+         /* First, just copy the locked field information over one column at
+          * a time.
+          */
+         for (x = 0; x < X_BLOCKS-1; x++)
+         {
+            for (y = 0; y < Y_BLOCKS; y++)
+               state->field[x][y] = state->field[x+1][y];
+         }
+
+         /* Now copy the graphics data left by one position. */
+         rect.x = 0;
+         rect.y = 0;
+         rect.w = SKF_FIELD_XRES-BLOCK_SIZE;
+         rect.h = SKF_FIELD_YRES;
+
+         blk_surface = save_region (state->back, BLOCK_SIZE, 0,
+                                    SKF_FIELD_XRES-BLOCK_SIZE, SKF_FIELD_YRES);
+         SDL_BlitSurface (blk_surface, NULL, state->back, &rect);
+         SDL_FreeSurface (blk_surface);
+
+         /* Paste the saved column into the rightmost position. */
+         for (y = 0; y < Y_BLOCKS; y++)
+            state->field[X_BLOCKS-1][y] = tmp[y];
+
+         rect.x = SKF_FIELD_XRES-BLOCK_SIZE;
+         rect.y = 0;
+         rect.w = BLOCK_SIZE;
+         rect.h = SKF_FIELD_YRES;
+
+         SDL_BlitSurface (col_surface, NULL, state->back, &rect);
+         SDL_FreeSurface (col_surface);
+
+         n--;
+
+         /* Pause briefly again before refreshing to show what we've done. */
+         SDL_Delay (200);
+         flip_screen (state->back, state->front);
+      }
    }
 
    /* Add the drop timer back in now that we're done. */
@@ -305,12 +367,12 @@ int main (int argc, char **argv)
    }
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050509", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050514", "skf");
 
    init_4block(&block);
    init_field(&state.field);
    init_screen(state.back);
-   flip (state.back, state.front, 0, 0, 0, 0);
+   flip_screen (state.back, state.front);
 
    /* Set up a callback to update the playing field every so often. */
    if ((state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL)) == NULL)

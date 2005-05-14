@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.13 2005/05/14 16:20:21 chris Exp $
+/* $Id: draw.h,v 1.14 2005/05/14 20:09:46 chris Exp $
  *
  * Basic drawing functions for the skf block-based demo.
  *
@@ -57,13 +57,20 @@ void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y);
 /* Refresh the dest surface with the contents of the src surface from the
  * defined rectangle.
  */
-void flip (SDL_Surface *src, SDL_Surface *dest, Uint32 x, Uint32 y,
-           Uint32 width, Uint32 height);
+void flip_region (SDL_Surface *src, SDL_Surface *dest, Uint32 x, Uint32 y,
+                  Uint32 width, Uint32 height);
+void flip_screen (SDL_Surface *src, SDL_Surface *dest);
 
 /* Initialize the screen by setting the background color.  screen must not be
  * locked.
  */
 void init_screen (SDL_Surface *screen);
+
+/* Make a copy of a portion of an SDL_Surface.  The destination surface will
+ * be width x height in size.  The source surface must not be locked.
+ */
+SDL_Surface *save_region (SDL_Surface *src, Uint32 base_x, Uint32 base_y,
+                          Uint32 width, Uint32 height);
 
 /* Draw a white X over a block, indicating that it's to be removed.  screen
  * must not be locked.
