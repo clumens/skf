@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.19 2005/05/14 20:09:47 chris Exp $ */
+/* $Id: skf.c,v 1.20 2005/05/15 01:32:36 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -27,18 +27,21 @@
 #include "skf.h"
 
 /* Types for user-defined events. */
-#define EVT_DROP     0
-#define EVT_LAND     1
+#define EVT_DROP     0           /* timer for dropping blocks */
+#define EVT_LAND     1           /* a block landed */
+#define EVT_REMOVED  2           /* we removed lines */
+#define EVT_CLEARED  3           /* the field is completely clear */
 
 /* Forward declarations are easier than making sure everything's in the right
  * order.
  */
+static void check_full_lines (state_t *state, int lowest_y);
 static void drop_field (state_t *state, int lowest_y);
 static Uint32 drop_timer_cb (Uint32 interval, void *params);
 static void init_field (field_t *field);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
-static void check_full_lines (state_t *state, int lowest_y);
+static void shift_field (state_t *state);
 static void update_block (state_t *state, block_t *block);
 
 /* +================================================================+
@@ -151,20 +154,9 @@ static void update_block (state_t *state, block_t *block)
  * +================================================================+
  */
 
-/* Initialize the playing field array by clearing out all positions where a
- * block could be.
+/* Lower the whole playing field at or above lowest_y by one position.  Used
+ * when a line is deleted and we need to drop the contents down.
  */
-static void init_field (field_t *field)
-{
-   int x, y;
-
-   for (y = 0; y < Y_BLOCKS; y++)
-   {
-      for (x = 0; x < X_BLOCKS; x++)
-         (*field)[x][y] = 0;
-   }
-}
-
 static void drop_field (state_t *state, int lowest_y)
 {
    int x, y;
@@ -187,6 +179,105 @@ static void drop_field (state_t *state, int lowest_y)
    }
 
    flip_screen (state->back, state->front);
+}
+
+/* Initialize the playing field array by clearing out all positions where a
+ * block could be.
+ */
+static void init_field (field_t *field)
+{
+   int x, y;
+
+   for (y = 0; y < Y_BLOCKS; y++)
+   {
+      for (x = 0; x < X_BLOCKS; x++)
+         (*field)[x][y] = 0;
+   }
+}
+
+/* Shift the playing field to the left by a random number of positions.  The
+ * items on the leftmost column will be wrapped around to the right side.  This
+ * is used when a line is deleted and we want to make things more interesting.
+ */
+static void shift_field (state_t *state)
+{
+   unsigned int n = rnd(3);
+
+   while (n > 0)
+   {
+      SDL_Surface *col_surface, *blk_surface;
+      SDL_Rect rect;
+      int tmp[Y_BLOCKS];
+      unsigned int y, x;
+
+      /* Make a copy of the leftmost column. */
+      col_surface = save_region (state->back, 0, 0, BLOCK_SIZE,
+                                 SKF_FIELD_YRES);
+      for (y = 0; y < Y_BLOCKS; y++)
+         tmp[y] = state->field[0][y];
+
+      /* First, just copy the locked field information over one column at
+       * a time.
+       */
+      for (x = 0; x < X_BLOCKS-1; x++)
+      {
+         for (y = 0; y < Y_BLOCKS; y++)
+            state->field[x][y] = state->field[x+1][y];
+      }
+
+      /* Now copy the graphics data left by one position. */
+      rect.x = 0;
+      rect.y = 0;
+      rect.w = SKF_FIELD_XRES-BLOCK_SIZE;
+      rect.h = SKF_FIELD_YRES;
+
+      blk_surface = save_region (state->back, BLOCK_SIZE, 0,
+                                 SKF_FIELD_XRES-BLOCK_SIZE, SKF_FIELD_YRES);
+      SDL_BlitSurface (blk_surface, NULL, state->back, &rect);
+      SDL_FreeSurface (blk_surface);
+
+      /* Paste the saved column into the rightmost position. */
+      for (y = 0; y < Y_BLOCKS; y++)
+         state->field[X_BLOCKS-1][y] = tmp[y];
+
+      rect.x = SKF_FIELD_XRES-BLOCK_SIZE;
+      rect.y = 0;
+      rect.w = BLOCK_SIZE;
+      rect.h = SKF_FIELD_YRES;
+
+      SDL_BlitSurface (col_surface, NULL, state->back, &rect);
+      SDL_FreeSurface (col_surface);
+
+      n--;
+
+      /* Pause briefly again before refreshing to show what we've done. */
+      SDL_Delay (200);
+      flip_screen (state->back, state->front);
+   }
+}
+
+static void randomize_field (state_t *state)
+{
+   int x, y;
+
+   /* Only make random blocks on the bottom half of the screen.  We don't want
+    * to make this too unfair.
+    */
+   for (y = Y_BLOCKS/2; y < Y_BLOCKS; y++)
+   {
+      for (x = 0; x < X_BLOCKS; x++)
+      {
+         /* Make it about a 1/3 chance of creating a block at each position. */
+         if (rnd(10) % 3 == 1)
+         {
+            state->field[x][y] = 1;
+            draw_block (state->back, x*BLOCK_SIZE, y*BLOCK_SIZE, rand_color());
+         }
+      }
+   }
+
+   flip_region (state->back, state->front, 0, (Y_BLOCKS/2)*BLOCK_SIZE,
+                SKF_FIELD_XRES, (Y_BLOCKS/2)*BLOCK_SIZE);
 }
 
 /* +================================================================+
@@ -225,11 +316,6 @@ static void check_full_lines (state_t *state, int lowest_y)
    int x, y = lowest_y;
    unsigned int removed_lines = 0;
 
-   /* First, kill the drop timer since we don't want new blocks falling
-    * while we might possibly be checking the board.
-    */
-   SDL_RemoveTimer (state->drop_timer_id);
-
    while (y >= 0)
    {
       /* There are blocks all the way across this row.  X them out. */
@@ -258,63 +344,33 @@ static void check_full_lines (state_t *state, int lowest_y)
     */
    if (removed_lines)
    {
-      unsigned int n = rnd(3);
+      SDL_Event evt;
 
-      while (n > 0)
+      /* Check if the field is completely clear.  If so, dole out some
+       * punishment.  If not, shift things around.
+       */
+      for (y = 0; y < Y_BLOCKS; y++)
       {
-         SDL_Surface *col_surface, *blk_surface;
-         SDL_Rect rect;
-         int tmp[Y_BLOCKS];
-         unsigned int y, x;
-
-         /* Make a copy of the leftmost column. */
-         col_surface = save_region (state->back, 0, 0, BLOCK_SIZE,
-                                    SKF_FIELD_YRES);
-         for (y = 0; y < Y_BLOCKS; y++)
-            tmp[y] = state->field[0][y];
-
-         /* First, just copy the locked field information over one column at
-          * a time.
-          */
-         for (x = 0; x < X_BLOCKS-1; x++)
+         if (!line_empty (&state->field, y))
          {
-            for (y = 0; y < Y_BLOCKS; y++)
-               state->field[x][y] = state->field[x+1][y];
+            evt.type = SDL_USEREVENT;
+            evt.user.code = EVT_REMOVED;
+            evt.user.data1 = NULL;
+            evt.user.data2 = NULL;
+            SDL_PushEvent (&evt);
+
+            state->drop_timer_id = NULL;
+            return;
          }
-
-         /* Now copy the graphics data left by one position. */
-         rect.x = 0;
-         rect.y = 0;
-         rect.w = SKF_FIELD_XRES-BLOCK_SIZE;
-         rect.h = SKF_FIELD_YRES;
-
-         blk_surface = save_region (state->back, BLOCK_SIZE, 0,
-                                    SKF_FIELD_XRES-BLOCK_SIZE, SKF_FIELD_YRES);
-         SDL_BlitSurface (blk_surface, NULL, state->back, &rect);
-         SDL_FreeSurface (blk_surface);
-
-         /* Paste the saved column into the rightmost position. */
-         for (y = 0; y < Y_BLOCKS; y++)
-            state->field[X_BLOCKS-1][y] = tmp[y];
-
-         rect.x = SKF_FIELD_XRES-BLOCK_SIZE;
-         rect.y = 0;
-         rect.w = BLOCK_SIZE;
-         rect.h = SKF_FIELD_YRES;
-
-         SDL_BlitSurface (col_surface, NULL, state->back, &rect);
-         SDL_FreeSurface (col_surface);
-
-         n--;
-
-         /* Pause briefly again before refreshing to show what we've done. */
-         SDL_Delay (200);
-         flip_screen (state->back, state->front);
       }
-   }
 
-   /* Add the drop timer back in now that we're done. */
-   state->drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
+      /* If we fell through to here, that means all lines were empty. */
+      evt.type = SDL_USEREVENT;
+      evt.user.code = EVT_CLEARED;
+      evt.user.data1 = NULL;
+      evt.user.data2 = NULL;
+      SDL_PushEvent (&evt);
+   }
 }
 
 /* +================================================================+
@@ -424,6 +480,9 @@ int main (int argc, char **argv)
 
                case EVT_LAND: {
                   unsigned int n = rnd(10);
+   
+                  if (state.drop_timer_id != NULL)
+                     SDL_RemoveTimer (state.drop_timer_id);
 
                   /* Make sure that chunk of the field is in use. */
                   block.lock (&block, &state.field);
@@ -439,8 +498,27 @@ int main (int argc, char **argv)
                   else
                      init_sblock (&block);
 
+                  state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
                   break;
                }
+
+               case EVT_REMOVED:
+                  if (state.drop_timer_id != NULL)
+                     SDL_RemoveTimer (state.drop_timer_id);
+
+                  shift_field (&state);
+   
+                  state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
+                  break;
+
+               case EVT_CLEARED:
+                  if (state.drop_timer_id != NULL)
+                     SDL_RemoveTimer (state.drop_timer_id);
+
+                  randomize_field (&state);
+   
+                  state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
+                  break;
             }
 
             break;
