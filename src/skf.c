@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.20 2005/05/15 01:32:36 chris Exp $ */
+/* $Id: skf.c,v 1.21 2005/05/15 02:24:33 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -102,14 +102,6 @@ unsigned int have_wm()
 /* Update the position of the currently dropping block on the playing field. */
 static void update_block (state_t *state, block_t *block)
 {
-#if 0
-   if (block->landed (block, field))
-   {
-      fprintf (stderr, "game over\n");
-      exit(0);
-   }
-#endif
-
    /* Make sure the requested move makes sense before doing all the junk
     * below.
     */
@@ -497,6 +489,12 @@ int main (int argc, char **argv)
                      init_4block (&block);
                   else
                      init_sblock (&block);
+
+                  if (block.landed (&block, &state))
+                  {
+                     fprintf (stderr, "game over\n");
+                     exit(0);
+                  }
 
                   state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
                   break;
