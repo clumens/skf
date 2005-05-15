@@ -1,8 +1,5 @@
 gameplay
 ========
-- Full lines currently always disappear.  Instead, we should apply a
-  probability distribtion to the full lines so that they disappear
-  eventually but not necessarily as soon as they are filled.
 - Visible timer counting up from when the game was started, to let you
   know how long you've been playing.
 - Ability to very briefly move the block sideways once it's landed?

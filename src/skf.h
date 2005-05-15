@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.9 2005/05/15 03:44:52 chris Exp $ */
+/* $Id: skf.h,v 1.10 2005/05/15 23:54:03 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -41,12 +41,15 @@
  */
 typedef int field_t[X_BLOCKS][Y_BLOCKS];
 
+typedef int filled_t[Y_BLOCKS];
+
 /* Various game state variables. */
 typedef struct state_t {
    SDL_Surface *front, *back;
    SDL_TimerID drop_timer_id;
    Uint32      drop_timer_int;
    field_t     field;
+   filled_t    fills;
 } state_t;
 
 /* A type representing a falling block. */

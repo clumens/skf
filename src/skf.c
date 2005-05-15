@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.22 2005/05/15 03:44:52 chris Exp $ */
+/* $Id: skf.c,v 1.23 2005/05/15 23:54:02 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -35,10 +35,10 @@
 /* Forward declarations are easier than making sure everything's in the right
  * order.
  */
-static void check_full_lines (state_t *state, int lowest_y);
+static void reap_full_lines (state_t *state);
 static void drop_field (state_t *state, int lowest_y);
 static Uint32 drop_timer_cb (Uint32 interval, void *params);
-static void init_field (field_t *field);
+static void init_field (state_t *state);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
 static Uint32 random_timer ();
@@ -129,10 +129,22 @@ static void update_block (state_t *state, block_t *block)
    block->draw (block, state->back);
    flip_screen (state->back, state->front);
 
-   /* If the block landed somewhere, reset for dropping the next one. */
+   /* If the block landed, first check to see if any lines are now full
+    * and then reset for dropping a new block.
+    */
    if (block->landed (block, state))
    {
       SDL_Event evt;
+      int y;
+
+      /* Give newly filled lines a 20% chance of disappearing on their first
+       * time into the reaper.
+       */
+      for (y = block->y; y < Y_BLOCKS; y++)
+      {
+         if (line_full (&state->field, y))
+            state->fills[y] = 20;
+      }
 
       evt.type = SDL_USEREVENT;
       evt.user.code = EVT_LAND;
@@ -156,18 +168,22 @@ static void drop_field (state_t *state, int lowest_y)
 
    for (y = lowest_y; y > 0; y--)
    {
+      state->fills[y] = state->fills[y-1];
+
       for (x = 0; x < X_BLOCKS; x++)
       {
-         (state->field)[x][y] = (state->field)[x][y-1];
+         state->field[x][y] = state->field[x][y-1];
          copy_block (state->back, x*BLOCK_SIZE, (y-1)*BLOCK_SIZE, x*BLOCK_SIZE,
                      y*BLOCK_SIZE);
       }
    }
 
    /* Now we need to make the top-most line clear. */
+   state->fills[0] = 0;
+
    for (x = 0; x < X_BLOCKS; x++)
    {
-      (state->field)[x][0] = 0;
+      state->field[x][0] = 0;
       erase_block (state->back, x*BLOCK_SIZE, 0);
    }
 
@@ -177,14 +193,16 @@ static void drop_field (state_t *state, int lowest_y)
 /* Initialize the playing field array by clearing out all positions where a
  * block could be.
  */
-static void init_field (field_t *field)
+static void init_field (state_t *state)
 {
    int x, y;
 
    for (y = 0; y < Y_BLOCKS; y++)
    {
+      state->fills[y] = 0;
+
       for (x = 0; x < X_BLOCKS; x++)
-         (*field)[x][y] = 0;
+         state->field[x][y] = 0;
    }
 }
 
@@ -304,15 +322,22 @@ static unsigned int __inline__ line_full (field_t *field, int line)
    return 1;
 }
 
-static void check_full_lines (state_t *state, int lowest_y)
+static void reap_full_lines (state_t *state)
 {
-   int x, y = lowest_y;
+   int x, y = Y_BLOCKS-1;
    unsigned int removed_lines = 0;
 
    while (y >= 0)
    {
-      /* There are blocks all the way across this row.  X them out. */
-      if (line_full (&(state->field), y))
+      /* If this line is not full, check the next one up. */
+      if (state->fills[y] == 0)
+      {
+         y--;
+         continue;
+      }
+
+      /* If the line is full, check the probability that we can remove it. */
+      if (state->fills[y] <= rnd(100))
       {
          removed_lines = 1;
 
@@ -329,7 +354,13 @@ static void check_full_lines (state_t *state, int lowest_y)
          drop_field (state, y);
       }
       else
+      {
+         /* Increase probability for this line to disappear next time and
+          * loop for the next row.
+          */
+         state->fills[y] += 5;
          y--;
+      }
    }
 
    /* Now that we've removed lines, possibly shift all the blocks on the screen
@@ -431,7 +462,7 @@ int main (int argc, char **argv)
       SDL_WM_SetCaption("shit keeps falling - v.20050514", "skf");
 
    init_4block(&block);
-   init_field(&state.field);
+   init_field(&state);
    init_screen(state.back);
    flip_screen (state.back, state.front);
 
@@ -496,10 +527,7 @@ int main (int argc, char **argv)
                   /* Make sure that chunk of the field is in use. */
                   block.lock (&block, &state.field);
 
-                  /* Can we kill a full line?  We only have to start at the
-                   * bottom end of the block that just landed.
-                   */
-                  check_full_lines (&state, block.y+block.height-1);
+                  reap_full_lines (&state);
 
                   /* Create a new block. */
                   if (n % 2 == 0)
