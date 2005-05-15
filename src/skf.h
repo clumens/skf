@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.8 2005/05/14 16:20:21 chris Exp $ */
+/* $Id: skf.h,v 1.9 2005/05/15 03:44:52 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -45,6 +45,7 @@ typedef int field_t[X_BLOCKS][Y_BLOCKS];
 typedef struct state_t {
    SDL_Surface *front, *back;
    SDL_TimerID drop_timer_id;
+   Uint32      drop_timer_int;
    field_t     field;
 } state_t;
 

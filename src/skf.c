@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.21 2005/05/15 02:24:33 chris Exp $ */
+/* $Id: skf.c,v 1.22 2005/05/15 03:44:52 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -41,6 +41,7 @@ static Uint32 drop_timer_cb (Uint32 interval, void *params);
 static void init_field (field_t *field);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
+static Uint32 random_timer ();
 static void shift_field (state_t *state);
 static void update_block (state_t *state, block_t *block);
 
@@ -370,6 +371,18 @@ static void check_full_lines (state_t *state, int lowest_y)
  * +================================================================+
  */
 
+/* Return a random interval for the drop timer such that 250ms < n <= 750ms. */
+static Uint32 random_timer ()
+{
+   Uint32 n;
+
+   do {
+      n = rnd (75);
+   } while (n < 25);
+
+   return n*10;
+}
+
 unsigned int rnd (float max)
 {
    return (unsigned int) (max*rand()/RAND_MAX);
@@ -423,7 +436,11 @@ int main (int argc, char **argv)
    flip_screen (state.back, state.front);
 
    /* Set up a callback to update the playing field every so often. */
-   if ((state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL)) == NULL)
+   state.drop_timer_int = random_timer();
+   state.drop_timer_id = SDL_AddTimer (state.drop_timer_int, drop_timer_cb,
+                                       NULL);
+
+   if (state.drop_timer_id == NULL)
    {
       fprintf (stderr, "Unable to set up timer callback: %s\n", SDL_GetError());
       exit(1);
@@ -496,7 +513,9 @@ int main (int argc, char **argv)
                      exit(0);
                   }
 
-                  state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
+                  state.drop_timer_int = random_timer();
+                  state.drop_timer_id = SDL_AddTimer (state.drop_timer_int,
+                                                      drop_timer_cb, NULL);
                   break;
                }
 
@@ -506,7 +525,8 @@ int main (int argc, char **argv)
 
                   shift_field (&state);
    
-                  state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
+                  state.drop_timer_id = SDL_AddTimer (state.drop_timer_int,
+                                                      drop_timer_cb, NULL);
                   break;
 
                case EVT_CLEARED:
@@ -515,7 +535,8 @@ int main (int argc, char **argv)
 
                   randomize_field (&state);
    
-                  state.drop_timer_id = SDL_AddTimer (500, drop_timer_cb, NULL);
+                  state.drop_timer_id = SDL_AddTimer (state.drop_timer_int,
+                                                      drop_timer_cb, NULL);
                   break;
             }
 
