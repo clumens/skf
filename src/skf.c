@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.23 2005/05/15 23:54:02 chris Exp $ */
+/* $Id: skf.c,v 1.24 2005/05/16 00:42:19 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -36,6 +36,8 @@
  * order.
  */
 static void reap_full_lines (state_t *state);
+static void do_update_block (state_t *state, block_t *block);
+static void drop_block (state_t *state, block_t *block);
 static void drop_field (state_t *state, int lowest_y);
 static Uint32 drop_timer_cb (Uint32 interval, void *params);
 static void init_field (state_t *state);
@@ -100,8 +102,8 @@ unsigned int have_wm()
  * +================================================================+
  */
 
-/* Update the position of the currently dropping block on the playing field. */
-static void update_block (state_t *state, block_t *block)
+/* Do all the hard work of block movement. */
+static void do_update_block (state_t *state, block_t *block)
 {
    /* Make sure the requested move makes sense before doing all the junk
     * below.
@@ -128,6 +130,51 @@ static void update_block (state_t *state, block_t *block)
    /* Draw the block in its new position. */
    block->draw (block, state->back);
    flip_screen (state->back, state->front);
+}
+
+/* When the space bar is pressed, drop the current block all the way until it
+ * lands.  This way, you don't have to sit there waiting for it to happen.
+ * Keyboard events are disabled during this process because we don't want any
+ * other movement to be allowed.
+ */
+static void drop_block (state_t *state, block_t *block)
+{
+   SDL_Event evt;
+   int y;
+
+   if (state->drop_timer_id != NULL)
+      SDL_RemoveTimer (state->drop_timer_id);
+
+   while (!block->landed (block, state))
+   {
+      do_update_block (state, block);
+      SDL_Delay (50);
+   }
+
+   /* Give newly filled lines a 20% chance of disappearing on their first time
+    * into the reaper.
+    */
+   for (y = block->y; y < Y_BLOCKS; y++)
+   {
+      if (line_full (&state->field, y))
+         state->fills[y] = 20;
+   }
+
+   evt.type = SDL_USEREVENT;
+   evt.user.code = EVT_LAND;
+   evt.user.data1 = NULL;
+   evt.user.data2 = NULL;
+   SDL_PushEvent (&evt);
+
+   state->drop_timer_id = SDL_AddTimer (state->drop_timer_int, drop_timer_cb,
+                                        NULL);
+}
+
+/* Update the position of the currently dropping block on the playing field. */
+static void update_block (state_t *state, block_t *block)
+{
+   /* Do all the hard work. */
+   do_update_block (state, block);
 
    /* If the block landed, first check to see if any lines are now full
     * and then reset for dropping a new block.
@@ -428,7 +475,7 @@ int main (int argc, char **argv)
    /* Seed RNG for picking random colors, among other things. */
    srand (time(NULL));
 
-   if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0)
+   if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE) < 0)
    {
       fprintf (stderr, "unable to init SDL:  %s\n", SDL_GetError());
       exit(1);
@@ -498,10 +545,10 @@ int main (int argc, char **argv)
                   update_block (&state, &block);
                   break;
 
-               case SDLK_DOWN:
+               case SDLK_SPACE:
                   block.dx = 0;
                   block.dy = 1;
-                  update_block (&state, &block);
+                  drop_block (&state, &block);
                   break;
 
                default:
