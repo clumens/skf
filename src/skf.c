@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.25 2005/05/17 00:35:40 chris Exp $ */
+/* $Id: skf.c,v 1.26 2005/05/17 00:43:35 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -49,6 +49,7 @@ static void drop_block (state_t *state, block_t *block);
 static void drop_field (state_t *state, int lowest_y);
 static Uint32 drop_timer_cb (Uint32 interval, void *params);
 static void init_field (state_t *state);
+static void init_surfaces (state_t *state);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
 static Uint32 random_timer ();
@@ -132,7 +133,6 @@ static void do_update_block (state_t *state, block_t *block)
       block->y += block->dy;
    }
 
-   /* Update x position, making sure the new position makes sense. */
    block->x += block->dx;
 
    /* Draw the block in its new position. */
@@ -451,6 +451,40 @@ static void reap_full_lines (state_t *state)
  * +================================================================+
  */
 
+static void init_surfaces (state_t *state)
+{
+   /* The front surface is the video buffer - anything drawn onto this surface
+    * will be displayed to the screen as soon as an update is called.  We only
+    * need a software surface since this is a simple 2D game.
+    */
+   state->front = SDL_SetVideoMode (SKF_XRES, SKF_YRES, best_color_depth(),
+                                    SDL_SWSURFACE);
+
+   if (state->front == NULL)
+   {
+      fprintf (stderr, "Unable to create front surface: %s\n", SDL_GetError());
+      exit(1);
+   }
+
+   /* The back surface is where we make all the changes.  Once a set of
+    * changes have been drawn onto this surface, a flip call will sync the
+    * front buffer with this one and our changes will be put to the screen.
+    * This eliminates much of the tearing problem.
+    */
+   state->back = SDL_CreateRGBSurface (SDL_SWSURFACE, SKF_XRES, SKF_YRES,
+                                       state->front->format->BitsPerPixel,
+                                       state->front->format->Rmask,
+                                       state->front->format->Gmask,
+                                       state->front->format->Bmask,
+                                       state->front->format->Amask);
+
+   if (state->back == NULL)
+   {
+      fprintf (stderr, "Unable to create back surface: %s\n", SDL_GetError());
+      exit(1);
+   }
+}
+
 /* Return a random interval for the drop timer such that 250ms < n <= 750ms. */
 static Uint32 random_timer ()
 {
@@ -471,55 +505,46 @@ unsigned int rnd (float max)
 int main (int argc, char **argv)
 {
    SDL_Event evt;
-   state_t state;
-   block_t block;
+   state_t *state;
+   block_t *block;
 
    /* Seed RNG for picking random colors, among other things. */
    srand (time(NULL));
 
    if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE) < 0)
    {
-      fprintf (stderr, "unable to init SDL:  %s\n", SDL_GetError());
+      fprintf (stderr, "Unable to init SDL:  %s\n", SDL_GetError());
       exit(1);
    }
 
    atexit (SDL_Quit);
 
-   state.front = SDL_SetVideoMode (SKF_XRES, SKF_YRES, best_color_depth(),
-                                   SDL_SWSURFACE);
-
-   if (state.front == NULL)
-   {
-      fprintf (stderr, "Unable to create front surface: %s\n", SDL_GetError());
-      exit(1);
-   }
-
-   state.back = SDL_CreateRGBSurface (SDL_SWSURFACE, SKF_XRES, SKF_YRES,
-                                      state.front->format->BitsPerPixel,
-                                      state.front->format->Rmask,
-                                      state.front->format->Gmask,
-                                      state.front->format->Bmask,
-                                      state.front->format->Amask);
-
-   if (state.back == NULL)
-   {
-      fprintf (stderr, "Unable to create back surface: %s\n", SDL_GetError());
-      exit(1);
-   }
-
    if (have_wm())
       SDL_WM_SetCaption("shit keeps falling - v.20050516", "skf");
 
-   init_4block(&block);
-   init_field(&state);
-   init_screen(state.back);
-   flip_screen (state.back, state.front);
+   if ((state = malloc (sizeof(state_t))) == NULL)
+   {
+      fprintf (stderr, "Unable to malloc for state struct\n");
+      exit(1);
+   }
+
+   if ((block = malloc (sizeof(block_t))) == NULL)
+   {
+      fprintf (stderr, "Unable to malloc for block struct\n");
+      exit(1);
+   }
+
+   init_surfaces (state);
+   init_4block (block);
+   init_field (state);
+   init_screen (state->back);
+   flip_screen (state->back, state->front);
 
    /* Set up a callback to update the playing field every so often. */
-   state.drop_timer_int = random_timer();
-   ENABLE_DROP_TIMER (&state);
+   state->drop_timer_int = random_timer();
+   ENABLE_DROP_TIMER (state);
 
-   if (state.drop_timer_id == NULL)
+   if (state->drop_timer_id == NULL)
    {
       fprintf (stderr, "Unable to set up timer callback: %s\n", SDL_GetError());
       exit(1);
@@ -535,23 +560,23 @@ int main (int argc, char **argv)
                 * response times!  Make sure to not drop it at the same time.
                 */
                case SDLK_LEFT:
-                  block.dx = -1;
-                  block.dy = 0;
-                  update_block (&state, &block);
+                  block->dx = -1;
+                  block->dy = 0;
+                  update_block (state, block);
                   break;
 
                case SDLK_RIGHT:
-                  block.dx = 1;
-                  block.dy = 0;
-                  update_block (&state, &block);
+                  block->dx = 1;
+                  block->dy = 0;
+                  update_block (state, block);
                   break;
 
                case SDLK_SPACE:
-                  block.dx = 0;
-                  block.dy = 1;
-                  DISABLE_DROP_TIMER (&state);
-                  drop_block (&state, &block);
-                  ENABLE_DROP_TIMER (&state);
+                  block->dx = 0;
+                  block->dy = 1;
+                  DISABLE_DROP_TIMER (state);
+                  drop_block (state, block);
+                  ENABLE_DROP_TIMER (state);
                   break;
 
                default:
@@ -563,48 +588,48 @@ int main (int argc, char **argv)
          case SDL_USEREVENT:
             switch (evt.user.code) {
                case EVT_DROP:
-                  block.dx = 0;
-                  block.dy = 1;
-                  update_block (&state, &block);
+                  block->dx = 0;
+                  block->dy = 1;
+                  update_block (state, block);
                   break;
 
                case EVT_LAND: {
                   unsigned int n = rnd(10);
 
-                  DISABLE_DROP_TIMER (&state);
+                  DISABLE_DROP_TIMER (state);
 
                   /* Make sure that chunk of the field is in use. */
-                  block.lock (&block, &state.field);
+                  block->lock (block, &state->field);
 
-                  reap_full_lines (&state);
+                  reap_full_lines (state);
 
                   /* Create a new block. */
                   if (n % 2 == 0)
-                     init_4block (&block);
+                     init_4block (block);
                   else
-                     init_sblock (&block);
+                     init_sblock (block);
 
-                  if (block.landed (&block, &state))
+                  if (block->landed (block, state))
                   {
                      fprintf (stderr, "game over\n");
                      exit(0);
                   }
 
-                  state.drop_timer_int = random_timer();
-                  ENABLE_DROP_TIMER (&state);
+                  state->drop_timer_int = random_timer();
+                  ENABLE_DROP_TIMER (state);
                   break;
                }
 
                case EVT_REMOVED:
-                  DISABLE_DROP_TIMER (&state);
-                  shift_field (&state);
-                  ENABLE_DROP_TIMER (&state);
+                  DISABLE_DROP_TIMER (state);
+                  shift_field (state);
+                  ENABLE_DROP_TIMER (state);
                   break;
 
                case EVT_CLEARED:
-                  DISABLE_DROP_TIMER (&state);
-                  randomize_field (&state);
-                  ENABLE_DROP_TIMER (&state);
+                  DISABLE_DROP_TIMER (state);
+                  randomize_field (state);
+                  ENABLE_DROP_TIMER (state);
                   break;
             }
 
