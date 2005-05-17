@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.24 2005/05/16 00:42:19 chris Exp $ */
+/* $Id: skf.c,v 1.25 2005/05/17 00:35:40 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -31,6 +31,14 @@
 #define EVT_LAND     1           /* a block landed */
 #define EVT_REMOVED  2           /* we removed lines */
 #define EVT_CLEARED  3           /* the field is completely clear */
+
+#define DISABLE_DROP_TIMER(state) \
+   if ((state)->drop_timer_id != NULL) \
+      SDL_RemoveTimer ((state)->drop_timer_id);
+
+#define ENABLE_DROP_TIMER(state) \
+   (state)->drop_timer_id = SDL_AddTimer((state)->drop_timer_int, \
+                                         drop_timer_cb, NULL);
 
 /* Forward declarations are easier than making sure everything's in the right
  * order.
@@ -142,9 +150,6 @@ static void drop_block (state_t *state, block_t *block)
    SDL_Event evt;
    int y;
 
-   if (state->drop_timer_id != NULL)
-      SDL_RemoveTimer (state->drop_timer_id);
-
    while (!block->landed (block, state))
    {
       do_update_block (state, block);
@@ -165,9 +170,6 @@ static void drop_block (state_t *state, block_t *block)
    evt.user.data1 = NULL;
    evt.user.data2 = NULL;
    SDL_PushEvent (&evt);
-
-   state->drop_timer_id = SDL_AddTimer (state->drop_timer_int, drop_timer_cb,
-                                        NULL);
 }
 
 /* Update the position of the currently dropping block on the playing field. */
@@ -506,7 +508,7 @@ int main (int argc, char **argv)
    }
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050514", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050516", "skf");
 
    init_4block(&block);
    init_field(&state);
@@ -515,8 +517,7 @@ int main (int argc, char **argv)
 
    /* Set up a callback to update the playing field every so often. */
    state.drop_timer_int = random_timer();
-   state.drop_timer_id = SDL_AddTimer (state.drop_timer_int, drop_timer_cb,
-                                       NULL);
+   ENABLE_DROP_TIMER (&state);
 
    if (state.drop_timer_id == NULL)
    {
@@ -548,7 +549,9 @@ int main (int argc, char **argv)
                case SDLK_SPACE:
                   block.dx = 0;
                   block.dy = 1;
+                  DISABLE_DROP_TIMER (&state);
                   drop_block (&state, &block);
+                  ENABLE_DROP_TIMER (&state);
                   break;
 
                default:
@@ -567,9 +570,8 @@ int main (int argc, char **argv)
 
                case EVT_LAND: {
                   unsigned int n = rnd(10);
-   
-                  if (state.drop_timer_id != NULL)
-                     SDL_RemoveTimer (state.drop_timer_id);
+
+                  DISABLE_DROP_TIMER (&state);
 
                   /* Make sure that chunk of the field is in use. */
                   block.lock (&block, &state.field);
@@ -589,29 +591,20 @@ int main (int argc, char **argv)
                   }
 
                   state.drop_timer_int = random_timer();
-                  state.drop_timer_id = SDL_AddTimer (state.drop_timer_int,
-                                                      drop_timer_cb, NULL);
+                  ENABLE_DROP_TIMER (&state);
                   break;
                }
 
                case EVT_REMOVED:
-                  if (state.drop_timer_id != NULL)
-                     SDL_RemoveTimer (state.drop_timer_id);
-
+                  DISABLE_DROP_TIMER (&state);
                   shift_field (&state);
-   
-                  state.drop_timer_id = SDL_AddTimer (state.drop_timer_int,
-                                                      drop_timer_cb, NULL);
+                  ENABLE_DROP_TIMER (&state);
                   break;
 
                case EVT_CLEARED:
-                  if (state.drop_timer_id != NULL)
-                     SDL_RemoveTimer (state.drop_timer_id);
-
+                  DISABLE_DROP_TIMER (&state);
                   randomize_field (&state);
-   
-                  state.drop_timer_id = SDL_AddTimer (state.drop_timer_int,
-                                                      drop_timer_cb, NULL);
+                  ENABLE_DROP_TIMER (&state);
                   break;
             }
 
