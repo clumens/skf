@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.10 2005/05/15 23:54:03 chris Exp $ */
+/* $Id: skf.h,v 1.11 2005/05/17 00:54:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -22,19 +22,28 @@
 #include <SDL/SDL.h>
 
 /* Size of one block in pixels. */
-#define BLOCK_SIZE   30
+#define BLOCK_SIZE      30
 
 /* Size of the playing field in blocks. */
-#define X_BLOCKS     14
-#define Y_BLOCKS     20
+#define X_BLOCKS        14
+#define Y_BLOCKS        20
 
 /* Size of the playing field in pixels. */
-#define SKF_FIELD_XRES  BLOCK_SIZE*X_BLOCKS
-#define SKF_FIELD_YRES  BLOCK_SIZE*Y_BLOCKS
+#define FIELD_XRES      BLOCK_SIZE*X_BLOCKS
+#define FIELD_YRES      BLOCK_SIZE*Y_BLOCKS
 
 /* Size of the entire window we want to draw. */
-#define SKF_XRES  SKF_FIELD_XRES
-#define SKF_YRES  SKF_FIELD_YRES
+#define XRES            FIELD_XRES
+#define YRES            FIELD_YRES
+
+/* Offset into the window where the playing field starts. */
+#define FIELD_XOFFSET   0
+#define FIELD_YOFFSET   0
+#define FIELD_X(coord)  ((coord)+FIELD_XOFFSET)
+#define FIELD_Y(coord)  ((coord)+FIELD_YOFFSET)
+
+/* Convert a block coordinate into a starting pixel coordinate. */
+#define B2P(coord)      ((coord)*BLOCK_SIZE)
 
 /* A type representing which sections of the playing field have blocks in
  * them and which do not.  The falling block is not represented.

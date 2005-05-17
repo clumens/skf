@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.26 2005/05/17 00:43:35 chris Exp $ */
+/* $Id: skf.c,v 1.27 2005/05/17 00:54:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -222,8 +222,7 @@ static void drop_field (state_t *state, int lowest_y)
       for (x = 0; x < X_BLOCKS; x++)
       {
          state->field[x][y] = state->field[x][y-1];
-         copy_block (state->back, x*BLOCK_SIZE, (y-1)*BLOCK_SIZE, x*BLOCK_SIZE,
-                     y*BLOCK_SIZE);
+         copy_block (state->back, x, y-1, x, y);
       }
    }
 
@@ -233,7 +232,7 @@ static void drop_field (state_t *state, int lowest_y)
    for (x = 0; x < X_BLOCKS; x++)
    {
       state->field[x][0] = 0;
-      erase_block (state->back, x*BLOCK_SIZE, 0);
+      erase_block (state->back, B2P(x), 0);
    }
 
    flip_screen (state->back, state->front);
@@ -271,8 +270,8 @@ static void shift_field (state_t *state)
       unsigned int y, x;
 
       /* Make a copy of the leftmost column. */
-      col_surface = save_region (state->back, 0, 0, BLOCK_SIZE,
-                                 SKF_FIELD_YRES);
+      col_surface = save_region (state->back, FIELD_XOFFSET, FIELD_YOFFSET,
+                                 BLOCK_SIZE, FIELD_YRES);
       for (y = 0; y < Y_BLOCKS; y++)
          tmp[y] = state->field[0][y];
 
@@ -286,13 +285,13 @@ static void shift_field (state_t *state)
       }
 
       /* Now copy the graphics data left by one position. */
-      rect.x = 0;
-      rect.y = 0;
-      rect.w = SKF_FIELD_XRES-BLOCK_SIZE;
-      rect.h = SKF_FIELD_YRES;
+      rect.x = FIELD_X(0);
+      rect.y = FIELD_Y(0);
+      rect.w = FIELD_XRES-BLOCK_SIZE;
+      rect.h = FIELD_YRES;
 
-      blk_surface = save_region (state->back, BLOCK_SIZE, 0,
-                                 SKF_FIELD_XRES-BLOCK_SIZE, SKF_FIELD_YRES);
+      blk_surface = save_region (state->back, FIELD_X(BLOCK_SIZE), FIELD_Y(0),
+                                 FIELD_XRES-BLOCK_SIZE, FIELD_YRES);
       SDL_BlitSurface (blk_surface, NULL, state->back, &rect);
       SDL_FreeSurface (blk_surface);
 
@@ -300,10 +299,10 @@ static void shift_field (state_t *state)
       for (y = 0; y < Y_BLOCKS; y++)
          state->field[X_BLOCKS-1][y] = tmp[y];
 
-      rect.x = SKF_FIELD_XRES-BLOCK_SIZE;
-      rect.y = 0;
+      rect.x = FIELD_X(FIELD_XRES-BLOCK_SIZE);
+      rect.y = FIELD_Y(0);
       rect.w = BLOCK_SIZE;
-      rect.h = SKF_FIELD_YRES;
+      rect.h = FIELD_YRES;
 
       SDL_BlitSurface (col_surface, NULL, state->back, &rect);
       SDL_FreeSurface (col_surface);
@@ -331,13 +330,13 @@ static void randomize_field (state_t *state)
          if (rnd(10) % 3 == 1)
          {
             state->field[x][y] = 1;
-            draw_block (state->back, x*BLOCK_SIZE, y*BLOCK_SIZE, rand_color());
+            draw_block (state->back, x, y, rand_color());
          }
       }
    }
 
-   flip_region (state->back, state->front, 0, (Y_BLOCKS/2)*BLOCK_SIZE,
-                SKF_FIELD_XRES, (Y_BLOCKS/2)*BLOCK_SIZE);
+   flip_region (state->back, state->front, FIELD_X(0), FIELD_Y(B2P(Y_BLOCKS/2)),
+                FIELD_XRES, B2P(Y_BLOCKS/2));
 }
 
 /* +================================================================+
@@ -391,10 +390,10 @@ static void reap_full_lines (state_t *state)
          removed_lines = 1;
 
          for (x = 0; x < X_BLOCKS; x++)
-            x_out_block (state->back, x*BLOCK_SIZE, y*BLOCK_SIZE);
+            x_out_block (state->back, x, y);
 
-         flip_region (state->back, state->front, 0, y*BLOCK_SIZE, SKF_XRES,
-                      BLOCK_SIZE);
+         flip_region (state->back, state->front, FIELD_X(0), FIELD_Y(B2P(y)),
+                      FIELD_XRES, BLOCK_SIZE);
 
          /* Pause briefly so people see what's happening. */
          SDL_Delay (200);
@@ -457,7 +456,7 @@ static void init_surfaces (state_t *state)
     * will be displayed to the screen as soon as an update is called.  We only
     * need a software surface since this is a simple 2D game.
     */
-   state->front = SDL_SetVideoMode (SKF_XRES, SKF_YRES, best_color_depth(),
+   state->front = SDL_SetVideoMode (XRES, YRES, best_color_depth(),
                                     SDL_SWSURFACE);
 
    if (state->front == NULL)
@@ -471,7 +470,7 @@ static void init_surfaces (state_t *state)
     * front buffer with this one and our changes will be put to the screen.
     * This eliminates much of the tearing problem.
     */
-   state->back = SDL_CreateRGBSurface (SDL_SWSURFACE, SKF_XRES, SKF_YRES,
+   state->back = SDL_CreateRGBSurface (SDL_SWSURFACE, XRES, YRES,
                                        state->front->format->BitsPerPixel,
                                        state->front->format->Rmask,
                                        state->front->format->Gmask,

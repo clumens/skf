@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.14 2005/05/14 20:09:46 chris Exp $
+/* $Id: draw.h,v 1.15 2005/05/17 00:54:01 chris Exp $
  *
  * Basic drawing functions for the skf block-based demo.
  *
@@ -32,16 +32,15 @@
 #include "skf.h"
 
 /* Copy a block from (src_x, src_y) to (dest_x, dest_y).  screen must not be
- * locked.
+ * locked.  The src and dest are given in block coordinates, not in pixels.
  */
-void copy_block (SDL_Surface *screen, Uint32 src_x, Uint32 src_y, Uint32 dest_x,
-                 Uint32 dest_y);
+void copy_block (SDL_Surface *screen, int src_x, int src_y, int dest_x,
+                 int dest_y);
 
-/* Draw one block starting at pixels (base_x, base_y) to screen using the
+/* Draw one block at block position (base_x, base_y) to screen using the
  * given color.  screen must not be locked.
  */
-void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
-                 Uint32 color);
+void draw_block (SDL_Surface *screen, int base_x, int base_y, Uint32 color);
 
 /* Draw a straight line from pixel coordinates (x1, y1) to (x2, y2) in the
  * specified color.  screen must be locked first.
@@ -49,10 +48,10 @@ void draw_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y,
 void draw_line (SDL_Surface *screen, Uint32 x1, Uint32 y1, Uint32 x2, Uint32 y2,
                 Uint32 color);
 
-/* Erase the block at pixel coordinates (base_x, base_y) by just drawing over
- * it in the background color.  screen must not be locked.
+/* Erase the block at block position (base_x, base_y) by just drawing over it
+ * in the background color.  screen must not be locked.
  */
-void erase_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y);
+void erase_block (SDL_Surface *screen, int base_x, int base_y);
 
 /* Refresh the dest surface with the contents of the src surface from the
  * defined rectangle.
@@ -73,8 +72,8 @@ SDL_Surface *save_region (SDL_Surface *src, Uint32 base_x, Uint32 base_y,
                           Uint32 width, Uint32 height);
 
 /* Draw a white X over a block, indicating that it's to be removed.  screen
- * must not be locked.
+ * must not be locked.  The base coordinates specify a block position.
  */
-void x_out_block (SDL_Surface *screen, Uint32 base_x, Uint32 base_y);
+void x_out_block (SDL_Surface *screen, int base_x, int base_y);
 
 #endif

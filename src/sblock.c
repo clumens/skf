@@ -1,4 +1,4 @@
-/* $Id: sblock.c,v 1.3 2005/05/14 16:20:21 chris Exp $ */
+/* $Id: sblock.c,v 1.4 2005/05/17 00:54:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -40,25 +40,25 @@ static unsigned int collides_sblock (block_t *block, state_t *state)
 
 static void draw_sblock (block_t *block, SDL_Surface *screen)
 {
-   Uint32 base_x = block->x*BLOCK_SIZE;
-   Uint32 base_y = block->y*BLOCK_SIZE;
+   int base_x = block->x;
+   int base_y = block->y;
    Uint32 color = block->color;
 
    draw_block (screen, base_x, base_y, color);
-   draw_block (screen, base_x, base_y+BLOCK_SIZE, color);
-   draw_block (screen, base_x, base_y+(2*BLOCK_SIZE), color);
-   draw_block (screen, base_x, base_y+(3*BLOCK_SIZE), color);
+   draw_block (screen, base_x, base_y+1, color);
+   draw_block (screen, base_x, base_y+2, color);
+   draw_block (screen, base_x, base_y+3, color);
 }
 
 static void erase_sblock (block_t *block, SDL_Surface *screen)
 {
-   Uint32 base_x = block->x*BLOCK_SIZE;
-   Uint32 base_y = block->y*BLOCK_SIZE;
+   int base_x = block->x;
+   int base_y = block->y;
 
    erase_block (screen, base_x, base_y);
-   erase_block (screen, base_x, base_y+BLOCK_SIZE);
-   erase_block (screen, base_x, base_y+(2*BLOCK_SIZE));
-   erase_block (screen, base_x, base_y+(3*BLOCK_SIZE));
+   erase_block (screen, base_x, base_y+1);
+   erase_block (screen, base_x, base_y+2);
+   erase_block (screen, base_x, base_y+3);
 }
 
 static unsigned int landed_sblock (block_t *block, state_t *state)
