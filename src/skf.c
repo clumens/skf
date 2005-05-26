@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.27 2005/05/17 00:54:01 chris Exp $ */
+/* $Id: skf.c,v 1.28 2005/05/26 15:16:22 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -22,6 +22,7 @@
 #include <SDL/SDL.h>
 
 #include "blocks.h"
+#include "clock.h"
 #include "colors.h"
 #include "draw.h"
 #include "skf.h"
@@ -31,6 +32,7 @@
 #define EVT_LAND     1           /* a block landed */
 #define EVT_REMOVED  2           /* we removed lines */
 #define EVT_CLEARED  3           /* the field is completely clear */
+#define EVT_CLOCK    4           /* update the clock */
 
 #define DISABLE_DROP_TIMER(state) \
    if ((state)->drop_timer_id != NULL) \
@@ -40,10 +42,17 @@
    (state)->drop_timer_id = SDL_AddTimer((state)->drop_timer_int, \
                                          drop_timer_cb, NULL);
 
+#define DISABLE_CLOCK_TIMER(state) \
+   if ((state)->clock_timer_id != NULL) \
+      SDL_RemoveTimer ((state)->clock_timer_id);
+
+#define ENABLE_CLOCK_TIMER(state) \
+   (state)->clock_timer_id = SDL_AddTimer(1000, clock_cb, NULL);
+
 /* Forward declarations are easier than making sure everything's in the right
  * order.
  */
-static void reap_full_lines (state_t *state);
+static Uint32 clock_cb (Uint32 interval, void *params);
 static void do_update_block (state_t *state, block_t *block);
 static void drop_block (state_t *state, block_t *block);
 static void drop_field (state_t *state, int lowest_y);
@@ -53,6 +62,7 @@ static void init_surfaces (state_t *state);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
 static Uint32 random_timer ();
+static void reap_full_lines (state_t *state);
 static void shift_field (state_t *state);
 static void update_block (state_t *state, block_t *block);
 
@@ -60,6 +70,19 @@ static void update_block (state_t *state, block_t *block);
  * | CALLBACKS                                                      |
  * +================================================================+
  */
+
+static Uint32 clock_cb (Uint32 interval, void *params)
+{
+   SDL_Event evt;
+
+   evt.type = SDL_USEREVENT;
+   evt.user.code = EVT_CLOCK;
+   evt.user.data1 = NULL;
+   evt.user.data2 = NULL;
+   SDL_PushEvent (&evt);
+
+   return interval;
+}
 
 /* Callback function for timer - just put an event into the queue and later,
  * it will be processed to do the drawing.  We're not supposed to call functions
@@ -519,7 +542,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050516", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050525", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
@@ -537,17 +560,13 @@ int main (int argc, char **argv)
    init_4block (block);
    init_field (state);
    init_screen (state->back);
+   init_clock (state);
    flip_screen (state->back, state->front);
 
    /* Set up a callback to update the playing field every so often. */
    state->drop_timer_int = random_timer();
    ENABLE_DROP_TIMER (state);
-
-   if (state->drop_timer_id == NULL)
-   {
-      fprintf (stderr, "Unable to set up timer callback: %s\n", SDL_GetError());
-      exit(1);
-   }
+   ENABLE_CLOCK_TIMER (state);
 
    do {
       SDL_WaitEvent (&evt);
@@ -574,8 +593,10 @@ int main (int argc, char **argv)
                   block->dx = 0;
                   block->dy = 1;
                   DISABLE_DROP_TIMER (state);
+                  DISABLE_CLOCK_TIMER (state);
                   drop_block (state, block);
                   ENABLE_DROP_TIMER (state);
+                  ENABLE_CLOCK_TIMER (state);
                   break;
 
                default:
@@ -629,6 +650,22 @@ int main (int argc, char **argv)
                   DISABLE_DROP_TIMER (state);
                   randomize_field (state);
                   ENABLE_DROP_TIMER (state);
+                  break;
+
+               case EVT_CLOCK:
+                  state->sec++;
+                  if (state->sec == 60)
+                  {
+                     state->sec = 0;
+                     state->min++;
+                  }
+
+                  if (state->min == 60)
+                  {
+                     state->min = 0;
+                     state->hr++;
+                  }
+                  update_clock (state);
                   break;
             }
 

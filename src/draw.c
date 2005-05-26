@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.15 2005/05/17 00:54:01 chris Exp $ */
+/* $Id: draw.c,v 1.16 2005/05/26 15:16:21 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -236,6 +236,8 @@ void flip_screen (SDL_Surface *src, SDL_Surface *dest)
 
 void init_screen (SDL_Surface *screen)
 {
+   SDL_Rect r;
+
    /* Make sure to lock before drawing. */
    if (SDL_MUSTLOCK(screen))
    {
@@ -243,7 +245,20 @@ void init_screen (SDL_Surface *screen)
          return;
    }
 
-   SDL_FillRect (screen, NULL, GREY);
+   r.x = CLOCK_XOFFSET;
+   r.y = CLOCK_YOFFSET;
+   r.w = CLOCK_XRES;
+   r.h = CLOCK_YRES;
+
+   SDL_FillRect (screen, &r, GREY);
+
+   /* Playing field */
+   r.x = FIELD_XOFFSET;
+   r.y = FIELD_YOFFSET;
+   r.w = FIELD_XRES;
+   r.h = FIELD_YRES;
+
+   SDL_FillRect (screen, &r, GREY);
    SDL_Flip(screen);
 
    /* Give up the lock. */

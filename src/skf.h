@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.11 2005/05/17 00:54:01 chris Exp $ */
+/* $Id: skf.h,v 1.12 2005/05/26 15:16:22 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -32,18 +32,26 @@
 #define FIELD_XRES      BLOCK_SIZE*X_BLOCKS
 #define FIELD_YRES      BLOCK_SIZE*Y_BLOCKS
 
-/* Size of the entire window we want to draw. */
-#define XRES            FIELD_XRES
-#define YRES            FIELD_YRES
-
 /* Offset into the window where the playing field starts. */
-#define FIELD_XOFFSET   0
-#define FIELD_YOFFSET   0
+#define FIELD_XOFFSET   10
+#define FIELD_YOFFSET   90
 #define FIELD_X(coord)  ((coord)+FIELD_XOFFSET)
 #define FIELD_Y(coord)  ((coord)+FIELD_YOFFSET)
 
 /* Convert a block coordinate into a starting pixel coordinate. */
 #define B2P(coord)      ((coord)*BLOCK_SIZE)
+
+/* Dimensions for the clock. */
+#define CLOCK_XRES      221
+#define CLOCK_YRES      72
+
+/* Size of the entire window we want to draw. */
+#define XRES            FIELD_XRES+20
+#define YRES            FIELD_YRES+CLOCK_YRES+30
+
+/* More clock. */
+#define CLOCK_XOFFSET   (XRES-CLOCK_XRES)/2
+#define CLOCK_YOFFSET   10
 
 /* A type representing which sections of the playing field have blocks in
  * them and which do not.  The falling block is not represented.
@@ -55,10 +63,11 @@ typedef int filled_t[Y_BLOCKS];
 /* Various game state variables. */
 typedef struct state_t {
    SDL_Surface *front, *back;
-   SDL_TimerID drop_timer_id;
+   SDL_TimerID drop_timer_id, clock_timer_id;
    Uint32      drop_timer_int;
    field_t     field;
    filled_t    fills;
+   unsigned int hr, min, sec;
 } state_t;
 
 /* A type representing a falling block. */
