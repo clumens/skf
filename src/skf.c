@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.28 2005/05/26 15:16:22 chris Exp $ */
+/* $Id: skf.c,v 1.29 2005/05/28 20:53:27 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -140,8 +140,7 @@ static void do_update_block (state_t *state, block_t *block)
    /* Make sure the requested move makes sense before doing all the junk
     * below.
     */
-   if (!block->may_move_sideways (block) ||
-        block->collides (block, state))
+   if (!block->may_move_sideways (block) || block->collides (block, state))
       return;
 
    /* Only try to erase the previous position if it's not a new block.  If it's
@@ -587,6 +586,16 @@ int main (int argc, char **argv)
                   block->dx = 1;
                   block->dy = 0;
                   update_block (state, block);
+                  break;
+
+               case SDLK_UP:
+                  if (block->cw_rotate != NULL)
+                     block->cw_rotate (block, state);
+                  break;
+
+               case SDLK_DOWN:
+                  if (block->ccw_rotate != NULL)
+                     block->ccw_rotate (block, state);
                   break;
 
                case SDLK_SPACE:

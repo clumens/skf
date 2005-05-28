@@ -1,4 +1,4 @@
-/* $Id: 4block.c,v 1.4 2005/05/17 00:54:01 chris Exp $ */
+/* $Id: 4block.c,v 1.5 2005/05/28 20:53:27 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -102,4 +102,6 @@ void init_4block (block_t *block)
    block->landed = landed_4block;
    block->lock = lock_region_4block;
    block->may_move_sideways = move_sideways_4block;
+   block->cw_rotate = NULL;
+   block->ccw_rotate = NULL;
 }

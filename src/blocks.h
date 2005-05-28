@@ -1,4 +1,4 @@
-/* $Id: blocks.h,v 1.1 2005/05/10 03:42:17 chris Exp $ */
+/* $Id: blocks.h,v 1.2 2005/05/28 20:53:27 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -21,6 +21,25 @@
 
 #include <SDL/SDL.h>
 #include "skf.h"
+
+/* A type representing a falling block. */
+typedef struct block_t {
+   unsigned int new;
+   unsigned int orientation;
+   Uint32 color;
+   int width, height;
+   int x, y;
+   int dx, dy;
+
+   unsigned int (* collides)(struct block_t *block, state_t *state);
+   void (* draw)(struct block_t *block, SDL_Surface *screen);
+   void (* erase)(struct block_t *block, SDL_Surface *screen);
+   unsigned int (* landed)(struct block_t *block, state_t *state);
+   void (* lock)(struct block_t *block, field_t *field);
+   unsigned int (* may_move_sideways)(struct block_t *block);
+   void (* cw_rotate)(struct block_t *block, state_t *state);
+   void (* ccw_rotate)(struct block_t *block, state_t *state);
+} block_t;
 
 void init_4block (block_t *block);
 void init_sblock (block_t *block);
