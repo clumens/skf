@@ -1,4 +1,4 @@
-/* $Id: blocks.h,v 1.2 2005/05/28 20:53:27 chris Exp $ */
+/* $Id: blocks.h,v 1.3 2005/05/30 16:29:57 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -42,6 +42,7 @@ typedef struct block_t {
 } block_t;
 
 void init_4block (block_t *block);
+void init_plusblock (block_t *block);
 void init_sblock (block_t *block);
 
 #endif

@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.29 2005/05/28 20:53:27 chris Exp $ */
+/* $Id: skf.c,v 1.30 2005/05/30 16:29:57 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -525,6 +525,11 @@ unsigned int rnd (float max)
 
 int main (int argc, char **argv)
 {
+   /* Pointers to the various block initialization functions. */
+   void ((*block_inits[3])(block_t *block)) = { init_4block, init_plusblock,
+      init_sblock
+   };
+
    SDL_Event evt;
    state_t *state;
    block_t *block;
@@ -541,7 +546,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050525", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050530", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
@@ -633,10 +638,7 @@ int main (int argc, char **argv)
                   reap_full_lines (state);
 
                   /* Create a new block. */
-                  if (n % 2 == 0)
-                     init_4block (block);
-                  else
-                     init_sblock (block);
+                  block_inits[n % 3](block);
 
                   if (block->landed (block, state))
                   {

@@ -1,10 +1,10 @@
-# $Id: Makefile,v 1.8 2005/05/26 15:16:21 chris Exp $
+# $Id: Makefile,v 1.9 2005/05/30 16:29:57 chris Exp $
 
 CC = gcc
 CFLAGS = -O2 -Wall `sdl-config --cflags`
 LDFLAGS = `sdl-config --libs`
 
-OBJS = 4block.o clock.o colors.o draw.o sblock.o skf.o
+OBJS = 4block.o clock.o colors.o draw.o plusblock.o sblock.o skf.o
 
 all: skf
 
@@ -28,6 +28,9 @@ colors.o: colors.c \
 
 draw.o: draw.c \
 	colors.h draw.h skf.h
+
+plusblock.o: plusblock.c \
+	blocks.h colors.h draw.h skf.h
 
 sblock.o: sblock.c \
 	blocks.h colors.h draw.h skf.h
