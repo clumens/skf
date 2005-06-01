@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.13 2005/05/28 20:53:27 chris Exp $ */
+/* $Id: skf.h,v 1.14 2005/06/01 22:07:04 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -62,12 +62,13 @@ typedef int filled_t[Y_BLOCKS];
 
 /* Various game state variables. */
 typedef struct state_t {
-   SDL_Surface *front, *back;
-   SDL_TimerID drop_timer_id, clock_timer_id;
-   Uint32      drop_timer_int;
-   field_t     field;
-   filled_t    fills;
-   unsigned int hr, min, sec;
+   SDL_Surface      *front, *back;
+   SDL_TimerID       drop_timer_id, clock_timer_id;
+   SDL_EventFilter   slide_filter;
+   Uint32            drop_timer_int;
+   field_t           field;
+   filled_t          fills;
+   unsigned int      hr, min, sec;
 } state_t;
 
 /* Returns the best color depth available in bits per pixel. */

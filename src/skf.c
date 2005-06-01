@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.31 2005/06/01 01:15:39 chris Exp $ */
+/* $Id: skf.c,v 1.32 2005/06/01 22:07:03 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -28,11 +28,12 @@
 #include "skf.h"
 
 /* Types for user-defined events. */
-#define EVT_DROP     0           /* timer for dropping blocks */
-#define EVT_LAND     1           /* a block landed */
-#define EVT_REMOVED  2           /* we removed lines */
-#define EVT_CLEARED  3           /* the field is completely clear */
-#define EVT_CLOCK    4           /* update the clock */
+#define EVT_DROP           0     /* timer for dropping blocks */
+#define EVT_LAND           1     /* a block landed */
+#define EVT_REMOVED        2     /* we removed lines */
+#define EVT_CLEARED        3     /* the field is completely clear */
+#define EVT_CLOCK          4     /* update the clock */
+#define EVT_SLIDE_TIMEOUT  5     /* time out for sliding the block */
 
 #define DISABLE_DROP_TIMER(state) \
    if ((state)->drop_timer_id != NULL) \
@@ -64,6 +65,7 @@ static unsigned int __inline__ line_full (field_t *field, int line);
 static Uint32 random_timer ();
 static void reap_full_lines (state_t *state);
 static void shift_field (state_t *state);
+static int slide_filter (const SDL_Event *evt);
 static void update_block (state_t *state, block_t *block);
 
 /* +================================================================+
@@ -100,6 +102,43 @@ static Uint32 drop_timer_cb (Uint32 interval, void *params)
 
    /* Return the interval so we know to reschedule the timer. */
    return interval;
+}
+
+/* This is pretty annoyingly convoluted. */
+static Uint32 slide_timer_cb (Uint32 interval, void *params)
+{
+   SDL_Event evt;
+
+   evt.type = SDL_USEREVENT;
+   evt.user.code = EVT_SLIDE_TIMEOUT;
+   evt.user.data1 = NULL;
+   evt.user.data2 = NULL;
+   SDL_PushEvent (&evt);
+
+   return 0;
+}
+
+/* Filter out events we don't want to handle when the player is allowed to
+ * slide the block back and forth.
+ */
+static int slide_filter (const SDL_Event *evt)
+{
+   if (evt->type == SDL_KEYDOWN)
+   {
+      if (evt->key.keysym.sym == SDLK_LEFT || evt->key.keysym.sym == SDLK_RIGHT)
+         return 1;
+      else
+         return 0;
+   }
+   else if (evt->type == SDL_USEREVENT)
+   {
+      if (evt->user.code == EVT_CLOCK || evt->user.code == EVT_SLIDE_TIMEOUT)
+         return 1;
+      else
+         return 0;
+   }
+   else
+      return 1;
 }
 
 /* +================================================================+
@@ -152,7 +191,9 @@ static void do_update_block (state_t *state, block_t *block)
    {
       /* Erase the previous position of the block. */
       block->erase (block, state->back);
-      block->y += block->dy;
+
+      if (state->slide_filter == NULL)
+         block->y += block->dy;
    }
 
    block->x += block->dx;
@@ -191,7 +232,9 @@ static void drop_block (state_t *state, block_t *block)
    evt.user.code = EVT_LAND;
    evt.user.data1 = NULL;
    evt.user.data2 = NULL;
-   SDL_PushEvent (&evt);
+
+   if (state->slide_filter == NULL || slide_filter(&evt))
+      SDL_PushEvent (&evt);
 }
 
 /* Update the position of the currently dropping block on the playing field. */
@@ -221,7 +264,9 @@ static void update_block (state_t *state, block_t *block)
       evt.user.code = EVT_LAND;
       evt.user.data1 = NULL;
       evt.user.data2 = NULL;
-      SDL_PushEvent (&evt);
+
+      if (state->slide_filter == NULL || slide_filter (&evt))
+         SDL_PushEvent (&evt);
    }
 }
 
@@ -451,7 +496,9 @@ static void reap_full_lines (state_t *state)
             evt.user.code = EVT_REMOVED;
             evt.user.data1 = NULL;
             evt.user.data2 = NULL;
-            SDL_PushEvent (&evt);
+
+            if (state->slide_filter == NULL || slide_filter (&evt))
+               SDL_PushEvent (&evt);
 
             state->drop_timer_id = NULL;
             return;
@@ -463,7 +510,9 @@ static void reap_full_lines (state_t *state)
       evt.user.code = EVT_CLEARED;
       evt.user.data1 = NULL;
       evt.user.data2 = NULL;
-      SDL_PushEvent (&evt);
+
+      if (state->slide_filter == NULL || slide_filter (&evt))
+         SDL_PushEvent (&evt);
    }
 }
 
@@ -546,7 +595,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050531", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050601", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
@@ -559,6 +608,8 @@ int main (int argc, char **argv)
       fprintf (stderr, "Unable to malloc for block struct\n");
       exit(1);
    }
+
+   state->slide_filter = NULL;
 
    init_surfaces (state);
    block_inits[rnd(10) % 4](block);
@@ -627,12 +678,37 @@ int main (int argc, char **argv)
                   update_block (state, block);
                   break;
 
-               case EVT_LAND: {
+               /* When a block lands, the player has a short amount of time to
+                * move the block from side to side before it is locked in
+                * position.  Mask off all the events we don't want to deal with
+                * during this interval.
+                */
+               case EVT_LAND:
+                  SDL_SetEventFilter (slide_filter);
+                  state->slide_filter = SDL_GetEventFilter();
+                  SDL_AddTimer (300, slide_timer_cb, NULL);
+                  break;
+
+               /* Okay, the player's out of time for sliding the block around.
+                * Re-enable all events and lock the block into position.
+                */
+               case EVT_SLIDE_TIMEOUT:
+                  state->slide_filter = NULL;
+                  SDL_SetEventFilter (NULL);
                   DISABLE_DROP_TIMER (state);
+
+                  /* It's possible that sliding the block around put it into
+                   * a position where it can drop some more, so check for
+                   * that.
+                   */
+                  if (! block->landed (block, state))
+                  {
+                     ENABLE_DROP_TIMER (state);
+                     break;
+                  }
 
                   /* Make sure that chunk of the field is in use. */
                   block->lock (block, &state->field);
-
                   reap_full_lines (state);
 
                   /* Create a new block. */
@@ -647,7 +723,6 @@ int main (int argc, char **argv)
                   state->drop_timer_int = random_timer();
                   ENABLE_DROP_TIMER (state);
                   break;
-               }
 
                case EVT_REMOVED:
                   DISABLE_DROP_TIMER (state);
