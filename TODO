@@ -1,5 +1,8 @@
 gameplay
 ========
+- be able to hold down sideways movement keys
+- better game over detection and handling
+- be able to move the block briefly once it's landed
 
 
 graphics
