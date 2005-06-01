@@ -1,4 +1,4 @@
-/* $Id: blocks.h,v 1.3 2005/05/30 16:29:57 chris Exp $ */
+/* $Id: blocks.h,v 1.4 2005/06/01 01:15:38 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -22,6 +22,8 @@
 #include <SDL/SDL.h>
 #include "skf.h"
 
+typedef enum dir_t { CW, CCW } dir_t;
+
 /* A type representing a falling block. */
 typedef struct block_t {
    unsigned int new;
@@ -37,11 +39,11 @@ typedef struct block_t {
    unsigned int (* landed)(struct block_t *block, state_t *state);
    void (* lock)(struct block_t *block, field_t *field);
    unsigned int (* may_move_sideways)(struct block_t *block);
-   void (* cw_rotate)(struct block_t *block, state_t *state);
-   void (* ccw_rotate)(struct block_t *block, state_t *state);
+   void (* rotate)(enum dir_t direction, struct block_t *block, state_t *state);
 } block_t;
 
 void init_4block (block_t *block);
+void init_lblock (block_t *block);
 void init_plusblock (block_t *block);
 void init_sblock (block_t *block);
 

@@ -1,4 +1,4 @@
-/* $Id: plusblock.c,v 1.1 2005/05/30 16:29:57 chris Exp $ */
+/* $Id: plusblock.c,v 1.2 2005/06/01 01:15:38 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -110,6 +110,5 @@ void init_plusblock (block_t *block)
    block->landed = landed_plusblock;
    block->lock = lock_region_plusblock;
    block->may_move_sideways = move_sideways_plusblock;
-   block->cw_rotate = NULL;
-   block->ccw_rotate = NULL;
+   block->rotate = NULL;
 }

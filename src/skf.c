@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.30 2005/05/30 16:29:57 chris Exp $ */
+/* $Id: skf.c,v 1.31 2005/06/01 01:15:39 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -526,8 +526,8 @@ unsigned int rnd (float max)
 int main (int argc, char **argv)
 {
    /* Pointers to the various block initialization functions. */
-   void ((*block_inits[3])(block_t *block)) = { init_4block, init_plusblock,
-      init_sblock
+   void ((*block_inits[4])(block_t *block)) = { init_4block, init_lblock,
+      init_plusblock, init_sblock
    };
 
    SDL_Event evt;
@@ -546,7 +546,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050530", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050531", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
@@ -561,7 +561,7 @@ int main (int argc, char **argv)
    }
 
    init_surfaces (state);
-   init_4block (block);
+   block_inits[rnd(10) % 4](block);
    init_field (state);
    init_screen (state->back);
    init_clock (state);
@@ -594,13 +594,13 @@ int main (int argc, char **argv)
                   break;
 
                case SDLK_UP:
-                  if (block->cw_rotate != NULL)
-                     block->cw_rotate (block, state);
+                  if (block->rotate != NULL)
+                     block->rotate (CW, block, state);
                   break;
 
                case SDLK_DOWN:
-                  if (block->ccw_rotate != NULL)
-                     block->ccw_rotate (block, state);
+                  if (block->rotate != NULL)
+                     block->rotate (CCW, block, state);
                   break;
 
                case SDLK_SPACE:
@@ -628,8 +628,6 @@ int main (int argc, char **argv)
                   break;
 
                case EVT_LAND: {
-                  unsigned int n = rnd(10);
-
                   DISABLE_DROP_TIMER (state);
 
                   /* Make sure that chunk of the field is in use. */
@@ -638,7 +636,7 @@ int main (int argc, char **argv)
                   reap_full_lines (state);
 
                   /* Create a new block. */
-                  block_inits[n % 3](block);
+                  block_inits[rnd(10) % 4](block);
 
                   if (block->landed (block, state))
                   {

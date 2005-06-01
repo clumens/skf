@@ -1,4 +1,4 @@
-/* $Id: sblock.c,v 1.5 2005/05/28 20:53:27 chris Exp $ */
+/* $Id: sblock.c,v 1.6 2005/06/01 01:15:39 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -126,7 +126,10 @@ static unsigned int move_sideways_sblock (block_t *block)
           block->x+block->width+block->dx <= X_BLOCKS;
 }
 
-static void rotate (block_t *block, state_t *state)
+/* Don't really care about direction, since there's only two orientations the
+ * block can exist in.
+ */
+static void rotate (dir_t direction, block_t *block, state_t *state)
 {
    block_t tmp;
 
@@ -200,6 +203,5 @@ void init_sblock (block_t *block)
    block->landed = landed_sblock;
    block->lock = lock_region_sblock;
    block->may_move_sideways = move_sideways_sblock;
-   block->cw_rotate = rotate;
-   block->ccw_rotate = rotate;
+   block->rotate = rotate;
 }
