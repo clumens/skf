@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.32 2005/06/01 22:07:03 chris Exp $ */
+/* $Id: skf.c,v 1.33 2005/06/04 18:43:16 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -67,6 +67,11 @@ static void reap_full_lines (state_t *state);
 static void shift_field (state_t *state);
 static int slide_filter (const SDL_Event *evt);
 static void update_block (state_t *state, block_t *block);
+
+/* Pointers to the various block initialization functions. */
+static void ((*block_inits[4])(block_t *block)) = { init_4block, init_lblock,
+   init_plusblock, init_sblock
+};
 
 /* +================================================================+
  * | CALLBACKS                                                      |
@@ -567,61 +572,17 @@ static Uint32 random_timer ()
    return n*10;
 }
 
-unsigned int rnd (float max)
+static void game_over (state_t *state, block_t *block)
 {
-   return (unsigned int) (max*rand()/RAND_MAX);
+   fprintf (stderr, "Game over.\n");
+   fprintf (stderr, "Elapsed time: %02d:%02d:%02d\n", state->hr, state->min,
+            state->sec);
+   exit(1);
 }
 
-int main (int argc, char **argv)
+static void event_loop (state_t *state, block_t *block)
 {
-   /* Pointers to the various block initialization functions. */
-   void ((*block_inits[4])(block_t *block)) = { init_4block, init_lblock,
-      init_plusblock, init_sblock
-   };
-
    SDL_Event evt;
-   state_t *state;
-   block_t *block;
-
-   /* Seed RNG for picking random colors, among other things. */
-   srand (time(NULL));
-
-   if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE) < 0)
-   {
-      fprintf (stderr, "Unable to init SDL:  %s\n", SDL_GetError());
-      exit(1);
-   }
-
-   atexit (SDL_Quit);
-
-   if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050601", "skf");
-
-   if ((state = malloc (sizeof(state_t))) == NULL)
-   {
-      fprintf (stderr, "Unable to malloc for state struct\n");
-      exit(1);
-   }
-
-   if ((block = malloc (sizeof(block_t))) == NULL)
-   {
-      fprintf (stderr, "Unable to malloc for block struct\n");
-      exit(1);
-   }
-
-   state->slide_filter = NULL;
-
-   init_surfaces (state);
-   block_inits[rnd(10) % 4](block);
-   init_field (state);
-   init_screen (state->back);
-   init_clock (state);
-   flip_screen (state->back, state->front);
-
-   /* Set up a callback to update the playing field every so often. */
-   state->drop_timer_int = random_timer();
-   ENABLE_DROP_TIMER (state);
-   ENABLE_CLOCK_TIMER (state);
 
    do {
       SDL_WaitEvent (&evt);
@@ -715,10 +676,7 @@ int main (int argc, char **argv)
                   block_inits[rnd(10) % 4](block);
 
                   if (block->landed (block, state))
-                  {
-                     fprintf (stderr, "game over\n");
-                     exit(0);
-                  }
+                     goto end;
 
                   state->drop_timer_int = random_timer();
                   ENABLE_DROP_TIMER (state);
@@ -737,18 +695,6 @@ int main (int argc, char **argv)
                   break;
 
                case EVT_CLOCK:
-                  state->sec++;
-                  if (state->sec == 60)
-                  {
-                     state->sec = 0;
-                     state->min++;
-                  }
-
-                  if (state->min == 60)
-                  {
-                     state->min = 0;
-                     state->hr++;
-                  }
                   update_clock (state);
                   break;
             }
@@ -760,5 +706,60 @@ int main (int argc, char **argv)
       }
    } while (evt.type != SDL_QUIT);
 
+end:
+   game_over (state, block);
+}
+
+unsigned int rnd (float max)
+{
+   return (unsigned int) (max*rand()/RAND_MAX);
+}
+
+int main (int argc, char **argv)
+{
+   state_t *state;
+   block_t *block;
+
+   /* Seed RNG for picking random colors, among other things. */
+   srand (time(NULL));
+
+   if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE) < 0)
+   {
+      fprintf (stderr, "Unable to init SDL:  %s\n", SDL_GetError());
+      exit(1);
+   }
+
+   atexit (SDL_Quit);
+
+   if (have_wm())
+      SDL_WM_SetCaption("shit keeps falling - v.20050604", "skf");
+
+   if ((state = malloc (sizeof(state_t))) == NULL)
+   {
+      fprintf (stderr, "Unable to malloc for state struct\n");
+      exit(1);
+   }
+
+   if ((block = malloc (sizeof(block_t))) == NULL)
+   {
+      fprintf (stderr, "Unable to malloc for block struct\n");
+      exit(1);
+   }
+
+   state->slide_filter = NULL;
+
+   init_surfaces (state);
+   block_inits[rnd(10) % 4](block);
+   init_field (state);
+   init_screen (state->back);
+   init_clock (state);
+   flip_screen (state->back, state->front);
+
+   /* Set up a callback to update the playing field every so often. */
+   state->drop_timer_int = random_timer();
+   ENABLE_DROP_TIMER (state);
+   ENABLE_CLOCK_TIMER (state);
+
+   event_loop (state, block);
    return 0;
 }

@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.1 2005/05/26 15:16:21 chris Exp $ */
+/* $Id: clock.c,v 1.2 2005/06/04 18:43:16 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -183,6 +183,21 @@ void update_clock (state_t *state)
       draw_8, draw_9
    };
 
+   /* First, update the time itself. */
+   state->sec++;
+   if (state->sec == 60)
+   {
+      state->sec = 0;
+      state->min++;
+   }
+
+   if (state->min == 60)
+   {
+      state->min = 0;
+      state->hr++;
+   }
+
+   /* Now, draw new digits only for the parts that have changed. */
    if (state->min == 0)
    {
       erase (state->back, POS0, CLOCK_YOFFSET);
