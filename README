@@ -1,0 +1,81 @@
+shit keeps falling - A Game
+by Chris Lumens
+
+1. Introduction
+===============
+shit keeps falling (SKF) is a familiar game where objects of various shapes 
+fall from the top of the screen and you have to find a place for them to land.
+The object of the game is to fill as many lines as possible.  The game ends
+when there is no room at the top of the screen for the next falling block.
+
+This current release is meant as a test of the game play only.  It's fairly
+ugly.  There's no pretty intro screens, help screen, pause, and so forth.  When
+you start the game, you are immediately launched into the screen where blocks
+start falling.  A more polished version will follow.
+
+
+2. Building and Installation
+============================
+
+2.1. Requirements
+-----------------
+This source release of SKF requires the following to build:
+
+   * A C compiler - Pretty straightforward.
+
+   * libsdl-1.2.x - libsdl is used for the graphics.  You'll need the
+                    development kit (shared libraries and header files)
+                    installed on your system to build.
+
+2.2. Building
+-------------
+Building SKF is easy:
+
+   $ make
+
+The built program may then be found in src/.  Since only the compiled binary
+is required to play at this moment, there is no specific installation procedure.
+You may run the skf program from its source directory or copy it wherever
+else you'd like.
+
+2.3. Platforms
+--------------
+SKF is developed and tested on Linux.  Other platforms with a C compiler and
+libsdl may also work, though I have not attempted to do this yet.  You are
+encouraged to try building it on another operating system and let me know how
+it works.  Patches are accepted.
+
+
+3. Playing
+==========
+When you begin the game, you will see a clock at the top of the screen and a
+large grey area on the rest of the screen.  The clock displays the elapsed time
+of the game, and the large grey area is the playing field where objects will
+be falling.  Each object will appear somewhere at the very top of the playing
+field.  You may use the following keys to move each object:
+
+   * left/right arrow keys - Move the object side to side.
+
+   * up/down arrow keys - Rotate the object clockwise and counterclockwise,
+                          respectively.  Objects that are symmetrical about
+                          both their X and Y axes may not be rotated, of course.
+
+   * space bar - Immediately drop the object all the way until it falls.  You
+                 will not be able to move the object in any way until it lands
+                 somewhere.
+
+Any other key immediately exits the game.  Like I said, this is a test.
+
+When the object lands, you may move it side to side with the arrow keys for a
+moment until it is "locked" in position.  If moving it side to side puts it
+into a position where the object can continue falling, it will and you can
+use any movement keys again.
+
+The game is over when the position where the next new block would appear is
+already filled.
+
+
+4. License
+==========
+SKF is distributed under the terms of the GPL, a copy of which may be found in
+the COPYING file in the top level of this source distribution.
