@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.34 2005/06/06 03:44:35 chris Exp $ */
+/* $Id: skf.c,v 1.35 2005/06/06 04:10:30 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -62,6 +62,7 @@ static void init_field (state_t *state);
 static void init_surfaces (state_t *state);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
+static void mark_full_lines (state_t *state, unsigned int min_y);
 static unsigned int random_block ();
 static Uint32 random_timer ();
 static void reap_full_lines (state_t *state);
@@ -217,21 +218,11 @@ static void do_update_block (state_t *state, block_t *block)
 static void drop_block (state_t *state, block_t *block)
 {
    SDL_Event evt;
-   int y;
 
    while (!block->landed (block, state))
    {
       do_update_block (state, block);
       SDL_Delay (50);
-   }
-
-   /* Give newly filled lines a 20% chance of disappearing on their first time
-    * into the reaper.
-    */
-   for (y = block->y; y < Y_BLOCKS; y++)
-   {
-      if (line_full (&state->field, y))
-         state->fills[y] = 20;
    }
 
    evt.type = SDL_USEREVENT;
@@ -456,6 +447,20 @@ static unsigned int __inline__ line_full (field_t *field, int line)
    return 1;
 }
 
+static void mark_full_lines (state_t *state, unsigned int min_y)
+{
+   unsigned int y;
+
+   /* Give newly filled lines a 20% chance of disappearing on their first time
+    * into the reaper.
+    */
+   for (y = min_y; y < Y_BLOCKS; y++)
+   {
+      if (line_full (&state->field, y))
+         state->fills[y] = 20;
+   }
+}
+
 static void reap_full_lines (state_t *state)
 {
    int x, y = Y_BLOCKS-1;
@@ -471,7 +476,7 @@ static void reap_full_lines (state_t *state)
       }
 
       /* If the line is full, check the probability that we can remove it. */
-      if (state->fills[y] <= rnd(100))
+      if (rnd(100) <= state->fills[y])
       {
          removed_lines = 1;
 
@@ -492,7 +497,7 @@ static void reap_full_lines (state_t *state)
          /* Increase probability for this line to disappear next time and
           * loop for the next row.
           */
-         state->fills[y] += 5;
+         state->fills[y] += 10;
          y--;
       }
    }
@@ -684,6 +689,7 @@ static void event_loop (state_t *state, block_t *block)
 
                   /* Make sure that chunk of the field is in use. */
                   block->lock (block, &state->field);
+                  mark_full_lines (state, block->y);
                   reap_full_lines (state);
 
                   /* Create a new block. */
