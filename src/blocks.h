@@ -1,4 +1,4 @@
-/* $Id: blocks.h,v 1.4 2005/06/01 01:15:38 chris Exp $ */
+/* $Id: blocks.h,v 1.5 2005/06/06 03:44:35 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -46,5 +46,6 @@ void init_4block (block_t *block);
 void init_lblock (block_t *block);
 void init_plusblock (block_t *block);
 void init_sblock (block_t *block);
+void init_ublock (block_t *block);
 
 #endif

@@ -2,6 +2,7 @@ gameplay
 ========
 - be able to hold down sideways movement keys
 - better game over detection and handling
+- try to clear out full lines before end of game
 
 
 graphics

@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.33 2005/06/04 18:43:16 chris Exp $ */
+/* $Id: skf.c,v 1.34 2005/06/06 03:44:35 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -62,6 +62,7 @@ static void init_field (state_t *state);
 static void init_surfaces (state_t *state);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
+static unsigned int random_block ();
 static Uint32 random_timer ();
 static void reap_full_lines (state_t *state);
 static void shift_field (state_t *state);
@@ -69,8 +70,8 @@ static int slide_filter (const SDL_Event *evt);
 static void update_block (state_t *state, block_t *block);
 
 /* Pointers to the various block initialization functions. */
-static void ((*block_inits[4])(block_t *block)) = { init_4block, init_lblock,
-   init_plusblock, init_sblock
+static void ((*block_inits[5])(block_t *block)) = { init_4block, init_lblock,
+   init_plusblock, init_sblock, init_ublock
 };
 
 /* +================================================================+
@@ -240,6 +241,19 @@ static void drop_block (state_t *state, block_t *block)
 
    if (state->slide_filter == NULL || slide_filter(&evt))
       SDL_PushEvent (&evt);
+}
+
+static unsigned int random_block ()
+{
+   unsigned int block_probs[5] = { 25, 25, 15, 20, 15 };
+   unsigned int n, i;
+
+   do {
+      i = rnd(10) % 5;
+      n = rnd(100);
+   } while (n <= block_probs[i]);
+
+   return i;
 }
 
 /* Update the position of the currently dropping block on the playing field. */
@@ -673,7 +687,7 @@ static void event_loop (state_t *state, block_t *block)
                   reap_full_lines (state);
 
                   /* Create a new block. */
-                  block_inits[rnd(10) % 4](block);
+                  block_inits[random_block()](block);
 
                   if (block->landed (block, state))
                      goto end;
@@ -732,7 +746,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050604", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050605", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
@@ -749,7 +763,7 @@ int main (int argc, char **argv)
    state->slide_filter = NULL;
 
    init_surfaces (state);
-   block_inits[rnd(10) % 4](block);
+   block_inits[random_block()](block);
    init_field (state);
    init_screen (state->back);
    init_clock (state);
