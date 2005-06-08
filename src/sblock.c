@@ -1,4 +1,4 @@
-/* $Id: sblock.c,v 1.6 2005/06/01 01:15:39 chris Exp $ */
+/* $Id: sblock.c,v 1.7 2005/06/08 23:58:42 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -50,7 +50,7 @@ static void draw_sblock (block_t *block, SDL_Surface *screen)
 {
    int base_x = block->x;
    int base_y = block->y;
-   Uint32 color = block->color;
+   colors_t color = block->color;
 
    if (block->orientation == UP_DOWN)
    {

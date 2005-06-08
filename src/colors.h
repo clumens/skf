@@ -1,4 +1,4 @@
-/* $Id: colors.h,v 1.4 2005/05/08 01:47:34 chris Exp $
+/* $Id: colors.h,v 1.5 2005/06/08 23:58:41 chris Exp $
  *
  * Functions and definitions for manipulating colors.
  */
@@ -34,15 +34,12 @@
 #define WHITE     0x00ffffff
 
 /* Block colors */
-#define BLUE      0x000000ff
-#define GREEN     0x00006400
-#define ORANGE    0x00ffa500
-#define RED       0x00cd0000
+typedef enum { BLUE, GREEN, ORANGE, RED } colors_t;
 
 /* The number of available block colors. */
 #define NCOLORS   4
 
 /* Select a random block color from one of the choices listed above. */
-Uint32 rand_color();
+colors_t rand_color();
 
 #endif

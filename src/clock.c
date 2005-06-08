@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.2 2005/06/04 18:43:16 chris Exp $ */
+/* $Id: clock.c,v 1.3 2005/06/08 23:58:41 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -33,24 +33,24 @@
 
 static void hline (SDL_Surface *screen, Uint32 x, Uint32 y)
 {
-   draw_line (screen, x+7, y,   x+25, y,   RED);
-   draw_line (screen, x+6, y+1, x+26, y+1, RED);
-   draw_line (screen, x+5, y+2, x+27, y+2, RED);
-   draw_line (screen, x+4, y+3, x+28, y+3, RED);
-   draw_line (screen, x+5, y+4, x+27, y+4, RED);
-   draw_line (screen, x+6, y+5, x+26, y+5, RED);
-   draw_line (screen, x+7, y+6, x+25, y+6, RED);
+   draw_line (screen, x+7, y,   x+25, y,   0x00cd0000);
+   draw_line (screen, x+6, y+1, x+26, y+1, 0x00cd0000);
+   draw_line (screen, x+5, y+2, x+27, y+2, 0x00cd0000);
+   draw_line (screen, x+4, y+3, x+28, y+3, 0x00cd0000);
+   draw_line (screen, x+5, y+4, x+27, y+4, 0x00cd0000);
+   draw_line (screen, x+6, y+5, x+26, y+5, 0x00cd0000);
+   draw_line (screen, x+7, y+6, x+25, y+6, 0x00cd0000);
 }
 
 static void vline (SDL_Surface *screen, Uint32 x, Uint32 y)
 {
-   draw_line (screen, x,   y+4, x,   y+24, RED);
-   draw_line (screen, x+1, y+3, x+1, y+25, RED);
-   draw_line (screen, x+2, y+2, x+2, y+26, RED);
-   draw_line (screen, x+3, y+1, x+3, y+27, RED);
-   draw_line (screen, x+4, y+2, x+4, y+26, RED);
-   draw_line (screen, x+5, y+3, x+5, y+25, RED);
-   draw_line (screen, x+6, y+4, x+6, y+24, RED);
+   draw_line (screen, x,   y+4, x,   y+24, 0x00cd0000);
+   draw_line (screen, x+1, y+3, x+1, y+25, 0x00cd0000);
+   draw_line (screen, x+2, y+2, x+2, y+26, 0x00cd0000);
+   draw_line (screen, x+3, y+1, x+3, y+27, 0x00cd0000);
+   draw_line (screen, x+4, y+2, x+4, y+26, 0x00cd0000);
+   draw_line (screen, x+5, y+3, x+5, y+25, 0x00cd0000);
+   draw_line (screen, x+6, y+4, x+6, y+24, 0x00cd0000);
 }
 
 static void draw_colon (SDL_Surface *screen, Uint32 x, Uint32 y)
@@ -58,8 +58,8 @@ static void draw_colon (SDL_Surface *screen, Uint32 x, Uint32 y)
    SDL_Rect r1 = { x+4, y+20, 7, 7 };
    SDL_Rect r2 = { x+4, y+40, 7, 7 };
 
-   SDL_FillRect (screen, &r1, RED);
-   SDL_FillRect (screen, &r2, RED);
+   SDL_FillRect (screen, &r1, 0x00cd0000);
+   SDL_FillRect (screen, &r2, 0x00cd0000);
 }
 
 static void draw_0 (SDL_Surface *screen, Uint32 x, Uint32 y)

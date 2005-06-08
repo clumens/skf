@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.36 2005/06/08 00:04:06 chris Exp $ */
+/* $Id: skf.c,v 1.37 2005/06/08 23:58:42 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -767,7 +767,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050607", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050608", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {

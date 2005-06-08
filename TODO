@@ -5,12 +5,9 @@ gameplay
 
 graphics
 ========
-- Enable HW acceleration?
-- Make a better layout for the main playing screen complete with borders
-  and things like that.
-- The blocks are really ugly.  They need to be pictures of random shapes.
-- Some sort of welcome/credits/whatever intro screen.
-- Better line disappearing effect.
+- Nonobtrusive background for playing field
+- Better line disappearing effect
+- Intro screen
 
 
 sound
@@ -29,3 +26,5 @@ ideas
 - randomized blocks
 - push field up when a line near the bottom is > 50% empty
 - drop new blocks when we want to, not when one lands
+- transpose columns
+- open up space in the middle of the field by shifting column off the edge

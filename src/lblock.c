@@ -1,4 +1,4 @@
-/* $Id: lblock.c,v 1.1 2005/06/01 01:15:38 chris Exp $ */
+/* $Id: lblock.c,v 1.2 2005/06/08 23:58:42 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -74,7 +74,7 @@ static void draw_lblock (block_t *block, SDL_Surface *screen)
 {
    int base_x = block->x;
    int base_y = block->y;
-   Uint32 color = block->color;
+   colors_t color = block->color;
 
    switch (block->orientation) {
       case OPEN_NE:

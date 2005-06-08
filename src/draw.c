@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.17 2005/06/08 03:01:12 chris Exp $ */
+/* $Id: draw.c,v 1.18 2005/06/08 23:58:41 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -25,74 +25,92 @@
 #include "draw.h"
 #include "skf.h"
 
+/* Function pointers to color depth-specific drawing functions. */
+static void (*draw_pixel) (SDL_Surface *screen, Uint32 color, Uint32 x,
+                           Uint32 y);
+static Uint32 (*get_pixel) (SDL_Surface *screen, Uint32 x, Uint32 y);
+
+/* Images for each color of block we support. */
+SDL_Surface *blue_img, *green_img, *orange_img, *red_img;
+
 /* +=====================================================================+
  * | PRIVATE FUNCTIONS                                                   |
  * +=====================================================================+
  */
 
-/* Draw one pixel to the video framebuffer.  screen must be locked before
- * calling this function.
+/* I'm betting it's faster to have one function per depth and dereference
+ * through a function pointer than to have the switch run through for every
+ * pixel.
  */
-static void __inline__ draw_pixel (SDL_Surface *screen, unsigned int bpp,
-                                   Uint32 color, Uint32 x, Uint32 y)
-{
-   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*bpp);
-
-   switch (bpp) {
-      case 1:
-         *p = color;
-         break;
-
-      case 2:
-         *(Uint16 *) p = color;
-         break;
-
-      case 3:
-         if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-         {
-            p[0] = RVAL(color);
-            p[1] = GVAL(color);
-            p[2] = BVAL(color);
-         }
-         else
-         {
-            p[0] = BVAL(color);
-            p[1] = GVAL(color);
-            p[2] = RVAL(color);
-         }
-         break;
-
-      case 4:
-         *(Uint32 *) p = color;
-         break;
-   }
-}
-
-static Uint32 __inline__ get_pixel (SDL_Surface *screen, unsigned int bpp,
+static void __inline__ draw_pixel1 (SDL_Surface *screen, Uint32 color,
                                     Uint32 x, Uint32 y)
 {
-   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*bpp);
-
-   switch (bpp) {
-      case 1:
-         return *p;
-
-      case 2:
-         return *(Uint16 *) p;
-
-      case 3:
-         if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-            return p[0] << 16 | p[1] << 8 | p[2];
-         else
-            return p[0] | p[1] << 8 | p[2] << 16;
-
-      case 4:
-         return *(Uint32 *) p;
-
-      default:
-         return 0;
-   }
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + x;
+   *p = color;
 }
+
+static void __inline__ draw_pixel2 (SDL_Surface *screen, Uint32 color,
+                                    Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*2);
+   *(Uint16 *) p = color;
+}
+
+static void __inline__ draw_pixel3l (SDL_Surface *screen, Uint32 color,
+                                     Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*3);
+   p[0] = BVAL(color);
+   p[1] = GVAL(color);
+   p[2] = RVAL(color);
+}
+
+static void __inline__ draw_pixel3b (SDL_Surface *screen, Uint32 color,
+                                     Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*3);
+   p[0] = RVAL(color);
+   p[1] = GVAL(color);
+   p[2] = BVAL(color);
+}
+
+static void __inline__ draw_pixel4 (SDL_Surface *screen, Uint32 color,
+                                    Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*4);
+   *(Uint32 *) p = color;
+}
+
+static Uint32 __inline__ get_pixel1 (SDL_Surface *screen, Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + x;
+   return *p;
+}
+
+static Uint32 __inline__ get_pixel2 (SDL_Surface *screen, Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*2);
+   return *(Uint16 *) p;
+}
+
+static Uint32 __inline__ get_pixel3b (SDL_Surface *screen, Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*3);
+   return p[0] << 16 | p[1] << 8 | p[2];
+}
+
+static Uint32 __inline__ get_pixel3l (SDL_Surface *screen, Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*3);
+   return p[0] | p[1] << 8 | p[2] << 16;
+}
+
+static Uint32 __inline__ get_pixel4 (SDL_Surface *screen, Uint32 x, Uint32 y)
+{
+   Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*4);
+   return *(Uint32 *) p;
+}
+
 
 static SDL_Surface *load_img (const char *img)
 {
@@ -118,7 +136,6 @@ void copy_block (SDL_Surface *screen, int src_x, int src_y, int dest_x,
                  int dest_y)
 {
    int x, y;
-   unsigned int bpp = best_color_depth()/8;
 
    Uint32 src_px_x = B2P(src_x);
    Uint32 src_px_y = B2P(src_y);
@@ -137,10 +154,9 @@ void copy_block (SDL_Surface *screen, int src_x, int src_y, int dest_x,
    {
       for (x = 0; x < BLOCK_SIZE; x++)
       {
-         Uint32 pixel = get_pixel (screen, bpp, FIELD_X(src_px_x+x),
+         Uint32 pixel = get_pixel (screen, FIELD_X(src_px_x+x),
                                    FIELD_Y(src_px_y+y));
-         draw_pixel (screen, bpp, pixel, FIELD_X(dest_px_x+x),
-                     FIELD_Y(dest_px_y+y));
+         draw_pixel (screen, pixel, FIELD_X(dest_px_x+x), FIELD_Y(dest_px_y+y));
       }
    }
 
@@ -153,43 +169,34 @@ void copy_block (SDL_Surface *screen, int src_x, int src_y, int dest_x,
                    BLOCK_SIZE, BLOCK_SIZE);
 }
 
-void draw_block (SDL_Surface *screen, int base_x, int base_y, Uint32 color)
+void draw_block (SDL_Surface *screen, int base_x, int base_y, colors_t color)
 {
-   int x, y;
-   unsigned int bpp = best_color_depth()/8;
-
    Uint32 px_x = B2P(base_x);
    Uint32 px_y = B2P(base_y);
 
-   /* Make sure to lock before drawing. */
-   if (SDL_MUSTLOCK(screen))
-   {
-      if (SDL_LockSurface(screen) < 0)
-         return;
+   SDL_Rect r = { FIELD_X(px_x), FIELD_Y(px_y), BLOCK_SIZE, BLOCK_SIZE };
+   SDL_Surface *src;
+
+   switch (color) {
+      case BLUE:
+         src = blue_img;
+         break;
+
+      case GREEN:
+         src = green_img;
+         break;
+
+      case ORANGE:
+         src = orange_img;
+         break;
+
+      case RED:
+      default:
+         src = red_img;
+         break;
    }
 
-   /* Draw all the pixels. */
-   for (y = 0; y < BLOCK_SIZE; y++)
-   {
-      for (x = 0; x < BLOCK_SIZE; x++)
-         draw_pixel (screen, bpp, color, FIELD_X(px_x+x), FIELD_Y(px_y+y));
-   }
-
-   /* A little decoration would be nice. */
-   draw_line (screen, FIELD_X(px_x+3), FIELD_Y(px_y+3),
-              FIELD_X(px_x+BLOCK_SIZE-4), FIELD_Y(px_y+3), BLACK);
-   draw_line (screen, FIELD_X(px_x+3), FIELD_Y(px_y+3), FIELD_X(px_x+3),
-              FIELD_Y(px_y+BLOCK_SIZE-4), BLACK);
-   draw_line (screen, FIELD_X(px_x+3),FIELD_Y(px_y+BLOCK_SIZE-4),
-              FIELD_X(px_x+BLOCK_SIZE-4), FIELD_Y(px_y+BLOCK_SIZE-4), BLACK);
-   draw_line (screen, FIELD_X(px_x+BLOCK_SIZE-4), FIELD_Y(px_y+3),
-              FIELD_X(px_x+BLOCK_SIZE-4), FIELD_Y(px_y+BLOCK_SIZE-4), BLACK);
-
-   /* Give up the lock. */
-   if (SDL_MUSTLOCK(screen))
-      SDL_UnlockSurface(screen);
-
-   /* Update the rectangular region we just drew. */
+   SDL_BlitSurface (src, NULL, screen, &r);
    SDL_UpdateRect (screen, FIELD_X(px_x), FIELD_Y(px_y), BLOCK_SIZE,
                    BLOCK_SIZE);
 }
@@ -197,20 +204,19 @@ void draw_block (SDL_Surface *screen, int base_x, int base_y, Uint32 color)
 void draw_line (SDL_Surface *screen, Uint32 x1, Uint32 y1, Uint32 x2, Uint32 y2,
                 Uint32 color)
 {
-   unsigned int bpp = best_color_depth()/8;
    Uint32 i;
 
    if (x1 == x2)
    {
       /* vertical line */
       for (i = y1; i <= y2; i++)
-         draw_pixel (screen, bpp, color, x1, i);
+         draw_pixel (screen, color, x1, i);
    }
    else if (y1 == y2)
    {
       /* horizontal line */
       for (i = x1; i <= x2; i++)
-         draw_pixel (screen, bpp, color, i, y1);
+         draw_pixel (screen, color, i, y1);
    }
    else
       return;
@@ -257,6 +263,36 @@ void init_screen (SDL_Surface *screen)
    SDL_Rect r;
    SDL_Surface *border_img;
 
+   switch (best_color_depth()/8) {
+      case 1:
+         draw_pixel = draw_pixel1;
+         get_pixel = get_pixel1;
+         break;
+
+      case 2:
+         draw_pixel = draw_pixel2;
+         get_pixel = get_pixel2;
+         break;
+
+      case 3:
+         if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+         {
+            draw_pixel = draw_pixel3b;
+            get_pixel = get_pixel3b;
+         }
+         else
+         {
+            draw_pixel = draw_pixel3l;
+            get_pixel = get_pixel3l;
+         }
+         break;
+
+      case 4:
+         draw_pixel = draw_pixel4;
+         get_pixel = get_pixel4;
+         break;
+   }
+
    /* Make sure to lock before drawing. */
    if (SDL_MUSTLOCK(screen))
    {
@@ -286,6 +322,11 @@ void init_screen (SDL_Surface *screen)
    /* Give up the lock. */
    if (SDL_MUSTLOCK(screen))
       SDL_UnlockSurface(screen);
+
+   blue_img = load_img ("blue_block.png");
+   green_img = load_img ("green_block.png");
+   orange_img = load_img ("orange_block.png");
+   red_img = load_img ("red_block.png");
 }
 
 SDL_Surface *save_region (SDL_Surface *src, Uint32 base_x, Uint32 base_y,
@@ -322,7 +363,6 @@ SDL_Surface *save_region (SDL_Surface *src, Uint32 base_x, Uint32 base_y,
 void x_out_block (SDL_Surface *screen, int base_x, int base_y)
 {
    Uint32 i;
-   unsigned int bpp = best_color_depth()/8;
 
    Uint32 px_x = B2P(base_x);
    Uint32 px_y = B2P(base_y);
@@ -335,11 +375,10 @@ void x_out_block (SDL_Surface *screen, int base_x, int base_y)
    }
 
    for (i = 0; i < BLOCK_SIZE; i++)
-      draw_pixel (screen, bpp, WHITE, FIELD_X(px_x+i), FIELD_Y(px_y+i));
+      draw_pixel (screen, WHITE, FIELD_X(px_x+i), FIELD_Y(px_y+i));
 
    for (i = 0; i < BLOCK_SIZE; i++)
-      draw_pixel (screen, bpp, WHITE, FIELD_X(px_x+i),
-                  FIELD_Y(px_y+BLOCK_SIZE-i));
+      draw_pixel (screen, WHITE, FIELD_X(px_x+i), FIELD_Y(px_y+BLOCK_SIZE-i));
 
    /* Give up the lock. */
    if (SDL_MUSTLOCK(screen))

@@ -1,4 +1,4 @@
-/* $Id: colors.c,v 1.4 2005/05/13 18:04:54 chris Exp $ */
+/* $Id: colors.c,v 1.5 2005/06/08 23:58:41 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -22,14 +22,11 @@
 #include "colors.h"
 #include "skf.h"
 
-/* Possible color choices for a block. */
-static Uint32 colors[] = { BLUE, GREEN, ORANGE, RED };
-
 /* +=====================================================================+
  * | PUBLIC FUNCTIONS                                                    |
  * +=====================================================================+
  */
-Uint32 rand_color()
+colors_t rand_color()
 {
-   return colors[rnd(NCOLORS)];
+   return rnd(NCOLORS);
 }
