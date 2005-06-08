@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.35 2005/06/06 04:10:30 chris Exp $ */
+/* $Id: skf.c,v 1.36 2005/06/08 00:04:06 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -58,6 +58,7 @@ static void do_update_block (state_t *state, block_t *block);
 static void drop_block (state_t *state, block_t *block);
 static void drop_field (state_t *state, int lowest_y);
 static Uint32 drop_timer_cb (Uint32 interval, void *params);
+static void game_over (state_t *state);
 static void init_field (state_t *state);
 static void init_surfaces (state_t *state);
 static unsigned int __inline__ line_empty (field_t *field, int line);
@@ -65,7 +66,7 @@ static unsigned int __inline__ line_full (field_t *field, int line);
 static void mark_full_lines (state_t *state, unsigned int min_y);
 static unsigned int random_block ();
 static Uint32 random_timer ();
-static void reap_full_lines (state_t *state);
+static void reap_full_lines (state_t *state, unsigned int clear_anyway);
 static void shift_field (state_t *state);
 static int slide_filter (const SDL_Event *evt);
 static void update_block (state_t *state, block_t *block);
@@ -461,7 +462,7 @@ static void mark_full_lines (state_t *state, unsigned int min_y)
    }
 }
 
-static void reap_full_lines (state_t *state)
+static void reap_full_lines (state_t *state, unsigned int clear_anyway)
 {
    int x, y = Y_BLOCKS-1;
    unsigned int removed_lines = 0;
@@ -475,8 +476,11 @@ static void reap_full_lines (state_t *state)
          continue;
       }
 
-      /* If the line is full, check the probability that we can remove it. */
-      if (rnd(100) <= state->fills[y])
+      /* If the line is full, check the probability that we can remove it.  We
+       * can also just remove all full lines if we're in the game over situation
+       * and we want to prolong things a little bit.
+       */
+      if (clear_anyway || rnd(100) <= state->fills[y])
       {
          removed_lines = 1;
 
@@ -591,12 +595,12 @@ static Uint32 random_timer ()
    return n*10;
 }
 
-static void game_over (state_t *state, block_t *block)
+static void game_over (state_t *state)
 {
    fprintf (stderr, "Game over.\n");
    fprintf (stderr, "Elapsed time: %02d:%02d:%02d\n", state->hr, state->min,
             state->sec);
-   exit(1);
+   exit (0);
 }
 
 static void event_loop (state_t *state, block_t *block)
@@ -644,9 +648,13 @@ static void event_loop (state_t *state, block_t *block)
                   ENABLE_CLOCK_TIMER (state);
                   break;
 
-               default:
-                  fprintf (stderr, "exiting on keypress\n");
+               case SDLK_ESCAPE:
+               case SDLK_q:
+                  game_over (state);
                   exit(0);
+
+               default:
+                  break;
             }
             break;
 
@@ -690,13 +698,20 @@ static void event_loop (state_t *state, block_t *block)
                   /* Make sure that chunk of the field is in use. */
                   block->lock (block, &state->field);
                   mark_full_lines (state, block->y);
-                  reap_full_lines (state);
+                  reap_full_lines (state, 0);
 
                   /* Create a new block. */
                   block_inits[random_block()](block);
 
+                  /* Does the block collide with what's already there?  If so,
+                   * try making a little space.
+                   */
                   if (block->landed (block, state))
-                     goto end;
+                  {
+                     reap_full_lines (state, 1);
+                     if (block->landed (block, state))
+                        goto end;
+                  }
 
                   state->drop_timer_int = random_timer();
                   ENABLE_DROP_TIMER (state);
@@ -727,7 +742,7 @@ static void event_loop (state_t *state, block_t *block)
    } while (evt.type != SDL_QUIT);
 
 end:
-   game_over (state, block);
+   game_over (state);
 }
 
 unsigned int rnd (float max)
@@ -743,7 +758,7 @@ int main (int argc, char **argv)
    /* Seed RNG for picking random colors, among other things. */
    srand (time(NULL));
 
-   if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE) < 0)
+   if (SDL_Init (SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0)
    {
       fprintf (stderr, "Unable to init SDL:  %s\n", SDL_GetError());
       exit(1);
@@ -752,7 +767,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050605", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050607", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
@@ -779,6 +794,12 @@ int main (int argc, char **argv)
    state->drop_timer_int = random_timer();
    ENABLE_DROP_TIMER (state);
    ENABLE_CLOCK_TIMER (state);
+
+   if (SDL_EnableKeyRepeat (75, 75) == -1)
+   {
+      fprintf (stderr, "Couldn't enable keyboard repeat.\n");
+      exit(1);
+   }
 
    event_loop (state, block);
    return 0;
