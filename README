@@ -24,8 +24,13 @@ This source release of SKF requires the following to build:
    * A C compiler - Pretty straightforward.
 
    * libsdl-1.2.x - libsdl is used for the graphics.  You'll need the
-                    development kit (shared libraries and header files)
-                    installed on your system to build.
+                    shared libraries and header files on your system to
+                    build SKF.
+
+   * SDL_image - An image loading interface between SDL and various format
+                 specific image libraries.
+
+   * libpng - The image library SDL_image needs to load artwork.
 
 2.2. Building
 -------------
@@ -33,10 +38,16 @@ Building SKF is easy:
 
    $ make
 
-The built program may then be found in src/.  Since only the compiled binary
-is required to play at this moment, there is no specific installation procedure.
-You may run the skf program from its source directory or copy it wherever
-else you'd like.
+You can then install the SKF program and other related files like so:
+
+   $ make install
+
+By default, SKF installs into /usr/local.  If you'd like to change that to
+some other prefix, set the PREFIX variable:
+
+   $ make PREFIX=/opt/skf install
+
+See Includes.mk for other variables you may be interested in.
 
 2.3. Platforms
 --------------
@@ -64,8 +75,6 @@ field.  You may use the following keys to move each object:
                  will not be able to move the object in any way until it lands
                  somewhere.
 
-Any other key immediately exits the game.  Like I said, this is a test.
-
 When the object lands, you may move it side to side with the arrow keys for a
 moment until it is "locked" in position.  If moving it side to side puts it
 into a position where the object can continue falling, it will and you can
@@ -75,7 +84,12 @@ The game is over when the position where the next new block would appear is
 already filled.
 
 
-4. License
+4. Quitting
+===========
+Use the escape or Q key to quit the game.
+
+
+5. License
 ==========
 SKF is distributed under the terms of the GPL, a copy of which may be found in
 the COPYING file in the top level of this source distribution.

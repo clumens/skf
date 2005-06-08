@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.16 2005/05/26 15:16:21 chris Exp $ */
+/* $Id: draw.c,v 1.17 2005/06/08 03:01:12 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -16,8 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#include <stdio.h>
 #include <stdlib.h>
 #include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
 
 #include "colors.h"
 #include "draw.h"
@@ -90,6 +92,22 @@ static Uint32 __inline__ get_pixel (SDL_Surface *screen, unsigned int bpp,
       default:
          return 0;
    }
+}
+
+static SDL_Surface *load_img (const char *img)
+{
+   SDL_Surface *retval;
+   char buf[255];
+
+   snprintf (buf, 254, "%s/%s", SKF_IMAGE_DIR, img);
+
+   if ((retval = IMG_Load (buf)) == NULL)
+   {
+      fprintf (stderr, "Unable to load image: %s\n", IMG_GetError());
+      exit(1);
+   }
+
+   return retval;
 }
 
 /* +=====================================================================+
@@ -237,6 +255,7 @@ void flip_screen (SDL_Surface *src, SDL_Surface *dest)
 void init_screen (SDL_Surface *screen)
 {
    SDL_Rect r;
+   SDL_Surface *border_img;
 
    /* Make sure to lock before drawing. */
    if (SDL_MUSTLOCK(screen))
@@ -259,6 +278,9 @@ void init_screen (SDL_Surface *screen)
    r.h = FIELD_YRES;
 
    SDL_FillRect (screen, &r, GREY);
+
+   border_img = load_img ("border.png");
+   SDL_BlitSurface (border_img, NULL, screen, NULL);
    SDL_Flip(screen);
 
    /* Give up the lock. */
