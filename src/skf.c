@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.38 2005/06/12 00:34:55 chris Exp $ */
+/* $Id: skf.c,v 1.39 2005/06/12 02:30:36 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -57,6 +57,7 @@ typedef enum { SKF_LOSE, SKF_QUIT } end_state_t;
  * order.
  */
 static Uint32 clock_cb (Uint32 interval, void *params);
+static void do_game_over (state_t *state);
 static void do_update_block (state_t *state, block_t *block);
 static void drop_block (state_t *state, block_t *block);
 static void drop_field (state_t *state, int lowest_y);
@@ -344,7 +345,7 @@ static void drop_field (state_t *state, int lowest_y)
    for (x = 0; x < X_BLOCKS; x++)
    {
       state->field[x][0] = 0;
-      erase_block (state->back, B2P(x), 0);
+      erase_block (state->back, x, 0);
    }
 
    flip_screen (state->back, state->front);
@@ -587,14 +588,21 @@ static void reap_full_lines (state_t *state, unsigned int clear_anyway)
  * +================================================================+
  */
 
-/* Handle the event loop.  This function continues until the player closes
- * the window or loses the game.  Then we fall out of the loop and take the
- * appropriate end of game action.
+static void do_game_over (state_t *state)
+{
+   fprintf (stderr, "Game over.\n");
+   fprintf (stderr, "Elapsed time: %02d:%02d:%02d\n", state->hr, state->min,
+            state->sec);
+   exit (0);
+}
+
+/* Handle the event loop.  We only leave this function if the user decides they
+ * want to start a new game after losing.  All other game over situations go
+ * into functions that do not return.
  */
 static void event_loop (state_t *state, block_t *block)
 {
    SDL_Event evt;
-   end_state_t end_state;
 
    while (1)
    {
@@ -606,8 +614,7 @@ static void event_loop (state_t *state, block_t *block)
             break;
 
          case SDL_QUIT:
-            end_state = SKF_QUIT;
-            break;
+            game_over (state, SKF_QUIT);
 
          case SDL_USEREVENT:
             switch (evt.user.code) {
@@ -656,8 +663,12 @@ static void event_loop (state_t *state, block_t *block)
 
                   if (!try_position_block (state, block))
                   {
-                     end_state = SKF_LOSE;
-                     goto end;
+                     game_over (state, SKF_LOSE);
+
+                     /* If we came back from game_over, time to start a new
+                      * game.  This is such a mess.
+                      */
+                     return;
                   }
 
                   update_block (state, block);
@@ -688,19 +699,19 @@ static void event_loop (state_t *state, block_t *block)
             break;
       }
    }
-
-end:
-   game_over (state, end_state);
 }
 
 /* Handle the ultimate game over situation. */
 static void game_over (state_t *state, end_state_t reason)
 {
-   unsigned int x, y;
+   SDL_Surface *img_surface;
+   SDL_Rect rect;
+   SDL_Event evt;
+   int x, y;
 
    if (reason == SKF_LOSE)
    {
-      for (y = Y_BLOCKS-1; y >= 0; y++)
+      for (y = Y_BLOCKS-1; y >= 0; y--)
       {
          for (x = 0; x < X_BLOCKS; x++)
          {
@@ -712,12 +723,45 @@ static void game_over (state_t *state, end_state_t reason)
                       FIELD_XRES, BLOCK_SIZE);
          SDL_Delay (100);
       }
-   }
 
-   fprintf (stderr, "Game over.\n");
-   fprintf (stderr, "Elapsed time: %02d:%02d:%02d\n", state->hr, state->min,
-            state->sec);
-   exit (0);
+      /* Draw an image to the screen so they know they lost. */
+      img_surface = load_img ("game_over.png");
+
+      rect.x = FIELD_X(B2P(3));
+      rect.y = FIELD_Y(B2P(7));
+
+      SDL_BlitSurface (img_surface, NULL, state->back, &rect);
+      SDL_FreeSurface (img_surface);
+      flip_screen (state->back, state->front);
+
+      /* Quit or play again? */
+      while (1)
+      {
+         SDL_WaitEvent (&evt);
+
+         switch (evt.type) {
+            case SDL_KEYDOWN:
+               if (evt.key.keysym.sym == SDLK_ESCAPE ||
+                   evt.key.keysym.sym == SDLK_q)
+                  do_game_over (state);
+               return;
+
+            case SDL_QUIT:
+               do_game_over (state);
+               return;
+
+            /* If they don't want to quit, we'll skip printing the message and
+             * set up for playing again.  Breaking out here means we need to
+             * jump out of several other functions.  Since non-local jumps suck,
+             * we'll just throw return values all over.
+             */
+            default:
+               break;
+         }
+      }
+   }
+   else
+      do_game_over (state);
 }
 
 /* Handle the various key presses that can happen in our event loop - no
@@ -764,8 +808,10 @@ static void handle_keypress (state_t *state, block_t *block, SDLKey sym)
 
       case SDLK_ESCAPE:
       case SDLK_q:
+         DISABLE_DROP_TIMER (state);
+         DISABLE_CLOCK_TIMER (state);
          game_over (state, SKF_QUIT);
-         exit (0);
+         break;
 
       default:
          break;
@@ -842,38 +888,50 @@ int main (int argc, char **argv)
    if (have_wm())
       SDL_WM_SetCaption("shit keeps falling - v.20050611", "skf");
 
-   if ((state = malloc (sizeof(state_t))) == NULL)
+   while (1)
    {
-      fprintf (stderr, "Unable to malloc for state struct\n");
-      exit(1);
+      if ((state = malloc (sizeof(state_t))) == NULL)
+      {
+         fprintf (stderr, "Unable to malloc for state struct\n");
+         exit(1);
+      }
+
+      if ((block = malloc (sizeof(block_t))) == NULL)
+      {
+         fprintf (stderr, "Unable to malloc for block struct\n");
+         exit(1);
+      }
+
+      state->slide_filter = NULL;
+
+      init_surfaces (state);
+      block_inits[random_block()](block);
+      init_field (state);
+      init_screen (state->back);
+      init_clock (state);
+      flip_screen (state->back, state->front);
+
+      /* Set up a callback to update the playing field every so often. */
+      state->drop_timer_int = random_timer();
+      ENABLE_DROP_TIMER (state);
+      ENABLE_CLOCK_TIMER (state);
+
+      if (SDL_EnableKeyRepeat (75, 75) == -1)
+      {
+         fprintf (stderr, "Couldn't enable keyboard repeat.\n");
+         exit(1);
+      }
+
+      event_loop (state, block);
+
+      /* If we get here, we're starting a new game.  Free up everything we
+       * had in use.
+       */
+      DISABLE_DROP_TIMER (state);
+      DISABLE_CLOCK_TIMER (state);
+      SDL_FreeSurface (state->back);
+      SDL_FreeSurface (state->front);
+      free (state);
+      free (block);
    }
-
-   if ((block = malloc (sizeof(block_t))) == NULL)
-   {
-      fprintf (stderr, "Unable to malloc for block struct\n");
-      exit(1);
-   }
-
-   state->slide_filter = NULL;
-
-   init_surfaces (state);
-   block_inits[random_block()](block);
-   init_field (state);
-   init_screen (state->back);
-   init_clock (state);
-   flip_screen (state->back, state->front);
-
-   /* Set up a callback to update the playing field every so often. */
-   state->drop_timer_int = random_timer();
-   ENABLE_DROP_TIMER (state);
-   ENABLE_CLOCK_TIMER (state);
-
-   if (SDL_EnableKeyRepeat (75, 75) == -1)
-   {
-      fprintf (stderr, "Couldn't enable keyboard repeat.\n");
-      exit(1);
-   }
-
-   event_loop (state, block);
-   return 0;
 }
