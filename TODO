@@ -1,12 +1,14 @@
 gameplay
 ========
-- better game over detection and handling
+- Better game over detection and handling
+- Make it possible for the field clearing punishment to occur
 
 
 graphics
 ========
 - Nonobtrusive background for playing field
 - Better line disappearing effect
+- Better "game over" effects
 - Intro screen
 
 
@@ -18,7 +20,7 @@ sound
 
 misc
 ====
-- incorporate ports into Makefile somehow
+- Incorporate ports into Makefile somehow
 
 
 ideas
