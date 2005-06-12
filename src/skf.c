@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.37 2005/06/08 23:58:42 chris Exp $ */
+/* $Id: skf.c,v 1.38 2005/06/12 00:34:55 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -50,6 +50,9 @@
 #define ENABLE_CLOCK_TIMER(state) \
    (state)->clock_timer_id = SDL_AddTimer(1000, clock_cb, NULL);
 
+/* Why is the game ending? */
+typedef enum { SKF_LOSE, SKF_QUIT } end_state_t;
+
 /* Forward declarations are easier than making sure everything's in the right
  * order.
  */
@@ -58,7 +61,8 @@ static void do_update_block (state_t *state, block_t *block);
 static void drop_block (state_t *state, block_t *block);
 static void drop_field (state_t *state, int lowest_y);
 static Uint32 drop_timer_cb (Uint32 interval, void *params);
-static void game_over (state_t *state);
+static void game_over (state_t *state, end_state_t reason);
+static void handle_keypress (state_t *state, block_t *block, SDLKey sym);
 static void init_field (state_t *state);
 static void init_surfaces (state_t *state);
 static unsigned int __inline__ line_empty (field_t *field, int line);
@@ -67,8 +71,9 @@ static void mark_full_lines (state_t *state, unsigned int min_y);
 static unsigned int random_block ();
 static Uint32 random_timer ();
 static void reap_full_lines (state_t *state, unsigned int clear_anyway);
-static void shift_field (state_t *state);
+static void shift_field (state_t *state, block_t *block);
 static int slide_filter (const SDL_Event *evt);
+static unsigned int try_position_block (state_t *state, block_t *block);
 static void update_block (state_t *state, block_t *block);
 
 /* Pointers to the various block initialization functions. */
@@ -190,19 +195,11 @@ static void do_update_block (state_t *state, block_t *block)
    if (!block->may_move_sideways (block) || block->collides (block, state))
       return;
 
-   /* Only try to erase the previous position if it's not a new block.  If it's
-    * new, it obviously just got here and doesn't have a previous position.
-    */
-   if (block->new)
-      block->new = 0;
-   else
-   {
-      /* Erase the previous position of the block. */
-      block->erase (block, state->back);
+   /* Erase the previous position of the block. */
+   block->erase (block, state->back);
 
-      if (state->slide_filter == NULL)
-         block->y += block->dy;
-   }
+   if (state->slide_filter == NULL)
+      block->y += block->dy;
 
    block->x += block->dx;
 
@@ -246,6 +243,43 @@ static unsigned int random_block ()
    } while (n <= block_probs[i]);
 
    return i;
+}
+
+/* Given a newly created block, try to position it on the field.  Return 0 if
+ * positioning the block fails, or 1 if it works.
+ */
+static unsigned int try_position_block (state_t *state, block_t *block)
+{
+   unsigned int i;
+
+   /* If the new block collides with what's already there, we
+    * may have reached the end of the game.
+    */
+   if (block->collides (block, state))
+   {
+      /* Try removing all the currently full lines.  Does that
+       * give us room for the new block?
+       */
+      reap_full_lines (state, 1);
+      if (!block->collides (block, state))
+         return 1;
+
+      /* No, still no room.  Start from the left edge of
+       * the field and try every position until we find one
+       * where the block fits.  If no good position, then
+       * it's game over.
+       */
+      for (i = 0; i < X_BLOCKS-block->width; i++)
+      {
+         block->x = i;
+         if (!block->collides (block, state))
+            return 1;
+      }
+
+      return 0;
+   }
+   else
+      return 1;
 }
 
 /* Update the position of the currently dropping block on the playing field. */
@@ -336,7 +370,7 @@ static void init_field (state_t *state)
  * items on the leftmost column will be wrapped around to the right side.  This
  * is used when a line is deleted and we want to make things more interesting.
  */
-static void shift_field (state_t *state)
+static void shift_field (state_t *state, block_t *block)
 {
    unsigned int n = rnd(3);
 
@@ -346,6 +380,9 @@ static void shift_field (state_t *state)
       SDL_Rect rect;
       int tmp[Y_BLOCKS];
       unsigned int y, x;
+
+      /* Erase the block from the back surface so it doesn't get copied over. */
+      block->erase (block, state->back);
 
       /* Make a copy of the leftmost column. */
       col_surface = save_region (state->back, FIELD_XOFFSET, FIELD_YOFFSET,
@@ -388,6 +425,7 @@ static void shift_field (state_t *state)
       n--;
 
       /* Pause briefly again before refreshing to show what we've done. */
+      block->draw (block, state->back);
       SDL_Delay (200);
       flip_screen (state->back, state->front);
    }
@@ -549,113 +587,26 @@ static void reap_full_lines (state_t *state, unsigned int clear_anyway)
  * +================================================================+
  */
 
-static void init_surfaces (state_t *state)
-{
-   /* The front surface is the video buffer - anything drawn onto this surface
-    * will be displayed to the screen as soon as an update is called.  We only
-    * need a software surface since this is a simple 2D game.
-    */
-   state->front = SDL_SetVideoMode (XRES, YRES, best_color_depth(),
-                                    SDL_SWSURFACE);
-
-   if (state->front == NULL)
-   {
-      fprintf (stderr, "Unable to create front surface: %s\n", SDL_GetError());
-      exit(1);
-   }
-
-   /* The back surface is where we make all the changes.  Once a set of
-    * changes have been drawn onto this surface, a flip call will sync the
-    * front buffer with this one and our changes will be put to the screen.
-    * This eliminates much of the tearing problem.
-    */
-   state->back = SDL_CreateRGBSurface (SDL_SWSURFACE, XRES, YRES,
-                                       state->front->format->BitsPerPixel,
-                                       state->front->format->Rmask,
-                                       state->front->format->Gmask,
-                                       state->front->format->Bmask,
-                                       state->front->format->Amask);
-
-   if (state->back == NULL)
-   {
-      fprintf (stderr, "Unable to create back surface: %s\n", SDL_GetError());
-      exit(1);
-   }
-}
-
-/* Return a random interval for the drop timer such that 250ms < n <= 750ms. */
-static Uint32 random_timer ()
-{
-   Uint32 n;
-
-   do {
-      n = rnd (75);
-   } while (n < 25);
-
-   return n*10;
-}
-
-static void game_over (state_t *state)
-{
-   fprintf (stderr, "Game over.\n");
-   fprintf (stderr, "Elapsed time: %02d:%02d:%02d\n", state->hr, state->min,
-            state->sec);
-   exit (0);
-}
-
+/* Handle the event loop.  This function continues until the player closes
+ * the window or loses the game.  Then we fall out of the loop and take the
+ * appropriate end of game action.
+ */
 static void event_loop (state_t *state, block_t *block)
 {
    SDL_Event evt;
+   end_state_t end_state;
 
-   do {
+   while (1)
+   {
       SDL_WaitEvent (&evt);
 
       switch (evt.type) {
          case SDL_KEYDOWN:
-            switch (evt.key.keysym.sym) {
-               /* Update block position as soon as a key is pressed for snappy
-                * response times!  Make sure to not drop it at the same time.
-                */
-               case SDLK_LEFT:
-                  block->dx = -1;
-                  block->dy = 0;
-                  update_block (state, block);
-                  break;
+            handle_keypress (state, block, evt.key.keysym.sym);
+            break;
 
-               case SDLK_RIGHT:
-                  block->dx = 1;
-                  block->dy = 0;
-                  update_block (state, block);
-                  break;
-
-               case SDLK_UP:
-                  if (block->rotate != NULL)
-                     block->rotate (CW, block, state);
-                  break;
-
-               case SDLK_DOWN:
-                  if (block->rotate != NULL)
-                     block->rotate (CCW, block, state);
-                  break;
-
-               case SDLK_SPACE:
-                  block->dx = 0;
-                  block->dy = 1;
-                  DISABLE_DROP_TIMER (state);
-                  DISABLE_CLOCK_TIMER (state);
-                  drop_block (state, block);
-                  ENABLE_DROP_TIMER (state);
-                  ENABLE_CLOCK_TIMER (state);
-                  break;
-
-               case SDLK_ESCAPE:
-               case SDLK_q:
-                  game_over (state);
-                  exit(0);
-
-               default:
-                  break;
-            }
+         case SDL_QUIT:
+            end_state = SKF_QUIT;
             break;
 
          case SDL_USEREVENT:
@@ -703,23 +654,20 @@ static void event_loop (state_t *state, block_t *block)
                   /* Create a new block. */
                   block_inits[random_block()](block);
 
-                  /* Does the block collide with what's already there?  If so,
-                   * try making a little space.
-                   */
-                  if (block->landed (block, state))
+                  if (!try_position_block (state, block))
                   {
-                     reap_full_lines (state, 1);
-                     if (block->landed (block, state))
-                        goto end;
+                     end_state = SKF_LOSE;
+                     goto end;
                   }
 
+                  update_block (state, block);
                   state->drop_timer_int = random_timer();
                   ENABLE_DROP_TIMER (state);
                   break;
 
                case EVT_REMOVED:
                   DISABLE_DROP_TIMER (state);
-                  shift_field (state);
+                  shift_field (state, block);
                   ENABLE_DROP_TIMER (state);
                   break;
 
@@ -739,10 +687,135 @@ static void event_loop (state_t *state, block_t *block)
          default:
             break;
       }
-   } while (evt.type != SDL_QUIT);
+   }
 
 end:
-   game_over (state);
+   game_over (state, end_state);
+}
+
+/* Handle the ultimate game over situation. */
+static void game_over (state_t *state, end_state_t reason)
+{
+   unsigned int x, y;
+
+   if (reason == SKF_LOSE)
+   {
+      for (y = Y_BLOCKS-1; y >= 0; y++)
+      {
+         for (x = 0; x < X_BLOCKS; x++)
+         {
+            if (state->field[x][y] != 0)
+               x_out_block (state->back, x, y);
+         }
+
+         flip_region (state->back, state->front, FIELD_X(0), FIELD_Y(B2P(y)),
+                      FIELD_XRES, BLOCK_SIZE);
+         SDL_Delay (100);
+      }
+   }
+
+   fprintf (stderr, "Game over.\n");
+   fprintf (stderr, "Elapsed time: %02d:%02d:%02d\n", state->hr, state->min,
+            state->sec);
+   exit (0);
+}
+
+/* Handle the various key presses that can happen in our event loop - no
+ * real reason to break this out other than that the event loop function is
+ * getting a little too large.
+ */
+static void handle_keypress (state_t *state, block_t *block, SDLKey sym)
+{
+   switch (sym) {
+      /* Update block position as soon as a key is pressed for snappy
+       * response times!  Make sure to not drop it at the same time.
+       */
+      case SDLK_LEFT:
+         block->dx = -1;
+         block->dy = 0;
+         update_block (state, block);
+         break;
+
+      case SDLK_RIGHT:
+         block->dx = 1;
+         block->dy = 0;
+         update_block (state, block);
+         break;
+
+      case SDLK_UP:
+         if (block->rotate != NULL)
+            block->rotate (CW, block, state);
+         break;
+
+      case SDLK_DOWN:
+         if (block->rotate != NULL)
+            block->rotate (CCW, block, state);
+         break;
+
+      case SDLK_SPACE:
+         block->dx = 0;
+         block->dy = 1;
+         DISABLE_DROP_TIMER (state);
+         DISABLE_CLOCK_TIMER (state);
+         drop_block (state, block);
+         ENABLE_DROP_TIMER (state);
+         ENABLE_CLOCK_TIMER (state);
+         break;
+
+      case SDLK_ESCAPE:
+      case SDLK_q:
+         game_over (state, SKF_QUIT);
+         exit (0);
+
+      default:
+         break;
+   }
+}
+
+static void init_surfaces (state_t *state)
+{
+   /* The front surface is the video buffer - anything drawn onto this surface
+    * will be displayed to the screen as soon as an update is called.  We only
+    * need a software surface since this is a simple 2D game.
+    */
+   state->front = SDL_SetVideoMode (XRES, YRES, best_color_depth(),
+                                    SDL_SWSURFACE);
+
+   if (state->front == NULL)
+   {
+      fprintf (stderr, "Unable to create front surface: %s\n", SDL_GetError());
+      exit(1);
+   }
+
+   /* The back surface is where we make all the changes.  Once a set of
+    * changes have been drawn onto this surface, a flip call will sync the
+    * front buffer with this one and our changes will be put to the screen.
+    * This eliminates much of the tearing problem.
+    */
+   state->back = SDL_CreateRGBSurface (SDL_SWSURFACE, XRES, YRES,
+                                       state->front->format->BitsPerPixel,
+                                       state->front->format->Rmask,
+                                       state->front->format->Gmask,
+                                       state->front->format->Bmask,
+                                       state->front->format->Amask);
+
+   if (state->back == NULL)
+   {
+      fprintf (stderr, "Unable to create back surface: %s\n", SDL_GetError());
+      exit(1);
+   }
+}
+
+/* Return a random interval for the drop timer such that 250ms < n <= 750ms. */
+static Uint32 random_timer ()
+{
+   Uint32 n;
+
+   do {
+      n = rnd (75);
+   } while (n < 25);
+
+   return n*10;
 }
 
 unsigned int rnd (float max)
@@ -767,7 +840,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050608", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050611", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
