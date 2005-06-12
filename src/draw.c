@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.18 2005/06/08 23:58:41 chris Exp $ */
+/* $Id: draw.c,v 1.19 2005/06/12 01:18:24 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -109,23 +109,6 @@ static Uint32 __inline__ get_pixel4 (SDL_Surface *screen, Uint32 x, Uint32 y)
 {
    Uint8 *p = (Uint8 *) screen->pixels + (y*screen->pitch) + (x*4);
    return *(Uint32 *) p;
-}
-
-
-static SDL_Surface *load_img (const char *img)
-{
-   SDL_Surface *retval;
-   char buf[255];
-
-   snprintf (buf, 254, "%s/%s", SKF_IMAGE_DIR, img);
-
-   if ((retval = IMG_Load (buf)) == NULL)
-   {
-      fprintf (stderr, "Unable to load image: %s\n", IMG_GetError());
-      exit(1);
-   }
-
-   return retval;
 }
 
 /* +=====================================================================+
@@ -327,6 +310,22 @@ void init_screen (SDL_Surface *screen)
    green_img = load_img ("green_block.png");
    orange_img = load_img ("orange_block.png");
    red_img = load_img ("red_block.png");
+}
+
+SDL_Surface *load_img (const char *img)
+{
+   SDL_Surface *retval;
+   char buf[255];
+
+   snprintf (buf, 254, "%s/%s", SKF_IMAGE_DIR, img);
+
+   if ((retval = IMG_Load (buf)) == NULL)
+   {
+      fprintf (stderr, "Unable to load image: %s\n", IMG_GetError());
+      exit(1);
+   }
+
+   return retval;
 }
 
 SDL_Surface *save_region (SDL_Surface *src, Uint32 base_x, Uint32 base_y,

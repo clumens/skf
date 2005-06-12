@@ -1,4 +1,4 @@
-/* $Id: draw.h,v 1.16 2005/06/08 23:58:41 chris Exp $
+/* $Id: draw.h,v 1.17 2005/06/12 01:18:24 chris Exp $
  *
  * Basic drawing functions for the skf block-based demo.
  *
@@ -65,6 +65,11 @@ void flip_screen (SDL_Surface *src, SDL_Surface *dest);
  * locked.
  */
 void init_screen (SDL_Surface *screen);
+
+/* Load an image from the SKF graphics directory (-DSKF_IMAGE_DIR) and return
+ * it as an SDL_Surface.  Exits the program if the file cannot be found.
+ */
+SDL_Surface *load_img (const char *img);
 
 /* Make a copy of a portion of an SDL_Surface.  The destination surface will
  * be width x height in size.  The source surface must not be locked.
