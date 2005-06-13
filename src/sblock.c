@@ -1,4 +1,4 @@
-/* $Id: sblock.c,v 1.7 2005/06/08 23:58:42 chris Exp $ */
+/* $Id: sblock.c,v 1.8 2005/06/13 02:47:52 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -188,7 +188,6 @@ static void rotate (dir_t direction, block_t *block, state_t *state)
 
 void init_sblock (block_t *block)
 {
-   block->new = 1;
    block->width = 1;
    block->height = 4;
    block->x = rnd(X_BLOCKS-block->width);

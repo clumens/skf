@@ -1,4 +1,4 @@
-/* $Id: ublock.c,v 1.2 2005/06/08 23:58:42 chris Exp $ */
+/* $Id: ublock.c,v 1.3 2005/06/13 02:47:52 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -329,7 +329,6 @@ static void rotate (dir_t direction, block_t *block, state_t *state)
 
 void init_ublock (block_t *block)
 {
-   block->new = 1;
    block->width = 3;
    block->height = 2;
    block->x = rnd(X_BLOCKS-block->width);

@@ -1,4 +1,4 @@
-/* $Id: blocks.h,v 1.5 2005/06/06 03:44:35 chris Exp $ */
+/* $Id: blocks.h,v 1.6 2005/06/13 02:47:51 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -26,7 +26,6 @@ typedef enum dir_t { CW, CCW } dir_t;
 
 /* A type representing a falling block. */
 typedef struct block_t {
-   unsigned int new;
    unsigned int orientation;
    Uint32 color;
    int width, height;

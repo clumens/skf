@@ -1,4 +1,4 @@
-/* $Id: plusblock.c,v 1.3 2005/06/08 23:58:42 chris Exp $ */
+/* $Id: plusblock.c,v 1.4 2005/06/13 02:47:51 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -96,7 +96,6 @@ static unsigned int move_sideways_plusblock (block_t *block)
 
 void init_plusblock (block_t *block)
 {
-   block->new = 1;
    block->width = 3;
    block->height = 3;
    block->x = rnd (X_BLOCKS-block->width);
