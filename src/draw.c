@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.19 2005/06/12 01:18:24 chris Exp $ */
+/* $Id: draw.c,v 1.20 2005/06/13 02:34:32 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -24,6 +24,21 @@
 #include "colors.h"
 #include "draw.h"
 #include "skf.h"
+
+#define LOCK(surface) \
+   do { \
+      if (SDL_MUSTLOCK(surface)) \
+      { \
+         if (SDL_LockSurface(surface) < 0) \
+            return; \
+      } \
+   } while (0)
+
+#define UNLOCK(surface) \
+   do { \
+      if (SDL_MUSTLOCK(surface)) \
+         SDL_UnlockSurface(surface); \
+   } while (0)
 
 /* Function pointers to color depth-specific drawing functions. */
 static void (*draw_pixel) (SDL_Surface *screen, Uint32 color, Uint32 x,
@@ -125,12 +140,7 @@ void copy_block (SDL_Surface *screen, int src_x, int src_y, int dest_x,
    Uint32 dest_px_x = B2P(dest_x);
    Uint32 dest_px_y = B2P(dest_y);
 
-   /* Make sure to lock before drawing. */
-   if (SDL_MUSTLOCK(screen))
-   {
-      if (SDL_LockSurface(screen) < 0)
-         return;
-   }
+   LOCK(screen);
 
    /* Copy all the pixels. */
    for (y = 0; y < BLOCK_SIZE; y++)
@@ -143,9 +153,7 @@ void copy_block (SDL_Surface *screen, int src_x, int src_y, int dest_x,
       }
    }
 
-   /* Give up the lock. */
-   if (SDL_MUSTLOCK(screen))
-      SDL_UnlockSurface(screen);
+   UNLOCK(screen);
 
    /* Update the rectangular region we just drew. */
    SDL_UpdateRect (screen, FIELD_X(dest_px_x), FIELD_Y(dest_px_y),
@@ -276,12 +284,7 @@ void init_screen (SDL_Surface *screen)
          break;
    }
 
-   /* Make sure to lock before drawing. */
-   if (SDL_MUSTLOCK(screen))
-   {
-      if (SDL_LockSurface(screen) < 0)
-         return;
-   }
+   LOCK(screen);
 
    r.x = CLOCK_XOFFSET;
    r.y = CLOCK_YOFFSET;
@@ -302,9 +305,7 @@ void init_screen (SDL_Surface *screen)
    SDL_BlitSurface (border_img, NULL, screen, NULL);
    SDL_Flip(screen);
 
-   /* Give up the lock. */
-   if (SDL_MUSTLOCK(screen))
-      SDL_UnlockSurface(screen);
+   UNLOCK(screen);
 
    blue_img = load_img ("blue_block.png");
    green_img = load_img ("green_block.png");
@@ -366,12 +367,7 @@ void x_out_block (SDL_Surface *screen, int base_x, int base_y)
    Uint32 px_x = B2P(base_x);
    Uint32 px_y = B2P(base_y);
 
-   /* Make sure to lock before drawing. */
-   if (SDL_MUSTLOCK(screen))
-   {
-      if (SDL_LockSurface(screen) < 0)
-         return;
-   }
+   LOCK(screen);
 
    for (i = 0; i < BLOCK_SIZE; i++)
       draw_pixel (screen, WHITE, FIELD_X(px_x+i), FIELD_Y(px_y+i));
@@ -379,9 +375,7 @@ void x_out_block (SDL_Surface *screen, int base_x, int base_y)
    for (i = 0; i < BLOCK_SIZE; i++)
       draw_pixel (screen, WHITE, FIELD_X(px_x+i), FIELD_Y(px_y+BLOCK_SIZE-i));
 
-   /* Give up the lock. */
-   if (SDL_MUSTLOCK(screen))
-      SDL_UnlockSurface(screen);
+   UNLOCK(screen);
 
    /* Update the rectangular region we just drew. */
    SDL_UpdateRect (screen, FIELD_X(px_x), FIELD_Y(px_y), BLOCK_SIZE,
