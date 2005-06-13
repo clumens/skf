@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.40 2005/06/13 02:35:59 chris Exp $ */
+/* $Id: skf.c,v 1.41 2005/06/13 03:06:34 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -31,9 +31,8 @@
 #define EVT_DROP           0     /* timer for dropping blocks */
 #define EVT_LAND           1     /* a block landed */
 #define EVT_REMOVED        2     /* we removed lines */
-#define EVT_CLEARED        3     /* the field is completely clear */
-#define EVT_CLOCK          4     /* update the clock */
-#define EVT_SLIDE_TIMEOUT  5     /* time out for sliding the block */
+#define EVT_CLOCK          3     /* update the clock */
+#define EVT_SLIDE_TIMEOUT  4     /* time out for sliding the block */
 
 #define DISABLE_DROP_TIMER(state) \
    if ((state)->drop_timer_id != NULL) \
@@ -62,6 +61,7 @@ static void do_update_block (state_t *state, block_t *block);
 static void drop_block (state_t *state, block_t *block);
 static void drop_field (state_t *state, int lowest_y);
 static Uint32 drop_timer_cb (Uint32 interval, void *params);
+static void flush_evt_queue ();
 static void game_over (state_t *state, end_state_t reason);
 static void handle_keypress (state_t *state, block_t *block, SDLKey sym);
 static void init_field (state_t *state);
@@ -72,7 +72,7 @@ static void mark_full_lines (state_t *state, unsigned int min_y);
 static unsigned int random_block ();
 static Uint32 random_timer ();
 static void reap_full_lines (state_t *state, unsigned int clear_anyway);
-static void shift_field (state_t *state, block_t *block);
+static void shift_field_left (state_t *state, block_t *block);
 static int slide_filter (const SDL_Event *evt);
 static unsigned int try_position_block (state_t *state, block_t *block);
 static void update_block (state_t *state, block_t *block);
@@ -371,7 +371,7 @@ static void init_field (state_t *state)
  * items on the leftmost column will be wrapped around to the right side.  This
  * is used when a line is deleted and we want to make things more interesting.
  */
-static void shift_field (state_t *state, block_t *block)
+static void shift_field_left (state_t *state, block_t *block)
 {
    unsigned int n = rnd(3);
 
@@ -430,30 +430,6 @@ static void shift_field (state_t *state, block_t *block)
       flip_screen (state->back, state->front);
       SDL_Delay (200);
    }
-}
-
-static void randomize_field (state_t *state)
-{
-   int x, y;
-
-   /* Only make random blocks on the bottom half of the screen.  We don't want
-    * to make this too unfair.
-    */
-   for (y = Y_BLOCKS/2; y < Y_BLOCKS; y++)
-   {
-      for (x = 0; x < X_BLOCKS; x++)
-      {
-         /* Make it about a 1/3 chance of creating a block at each position. */
-         if (rnd(10) % 3 == 1)
-         {
-            state->field[x][y] = 1;
-            draw_block (state->back, x, y, rand_color());
-         }
-      }
-   }
-
-   flip_region (state->back, state->front, FIELD_X(0), FIELD_Y(B2P(Y_BLOCKS/2)),
-                FIELD_XRES, B2P(Y_BLOCKS/2));
 }
 
 /* +================================================================+
@@ -569,15 +545,6 @@ static void reap_full_lines (state_t *state, unsigned int clear_anyway)
             return;
          }
       }
-
-      /* If we fell through to here, that means all lines were empty. */
-      evt.type = SDL_USEREVENT;
-      evt.user.code = EVT_CLEARED;
-      evt.user.data1 = NULL;
-      evt.user.data2 = NULL;
-
-      if (state->slide_filter == NULL || slide_filter (&evt))
-         SDL_PushEvent (&evt);
    }
 }
 
@@ -676,13 +643,7 @@ static void event_loop (state_t *state, block_t *block)
 
                case EVT_REMOVED:
                   DISABLE_DROP_TIMER (state);
-                  shift_field (state, block);
-                  ENABLE_DROP_TIMER (state);
-                  break;
-
-               case EVT_CLEARED:
-                  DISABLE_DROP_TIMER (state);
-                  randomize_field (state);
+                  shift_field_left (state, block);
                   ENABLE_DROP_TIMER (state);
                   break;
 
@@ -697,6 +658,14 @@ static void event_loop (state_t *state, block_t *block)
             break;
       }
    }
+}
+
+static void flush_evt_queue ()
+{
+   SDL_Event junk;
+
+   while (SDL_PollEvent (&junk))
+      ;
 }
 
 /* Handle the ultimate game over situation. */
@@ -731,6 +700,9 @@ static void game_over (state_t *state, end_state_t reason)
       SDL_BlitSurface (img_surface, NULL, state->back, &rect);
       SDL_FreeSurface (img_surface);
       flip_screen (state->back, state->front);
+
+      /* Purge any existing events so the player has to do something here. */
+      flush_evt_queue();
 
       /* Quit or play again? */
       while (1)
@@ -869,7 +841,6 @@ unsigned int rnd (float max)
 
 int main (int argc, char **argv)
 {
-   SDL_Event junk;
    state_t *state;
    block_t *block;
    int y;
@@ -937,7 +908,6 @@ int main (int argc, char **argv)
       DISABLE_CLOCK_TIMER (state);
 
       /* We need to clear out the event queue. */
-      while (SDL_PollEvent (&junk))
-         ;
+      flush_evt_queue();
    }
 }
