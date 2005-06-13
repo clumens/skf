@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.39 2005/06/12 02:30:36 chris Exp $ */
+/* $Id: skf.c,v 1.40 2005/06/13 02:35:59 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -427,8 +427,8 @@ static void shift_field (state_t *state, block_t *block)
 
       /* Pause briefly again before refreshing to show what we've done. */
       block->draw (block, state->back);
-      SDL_Delay (200);
       flip_screen (state->back, state->front);
+      SDL_Delay (200);
    }
 }
 
@@ -529,10 +529,8 @@ static void reap_full_lines (state_t *state, unsigned int clear_anyway)
          flip_region (state->back, state->front, FIELD_X(0), FIELD_Y(B2P(y)),
                       FIELD_XRES, BLOCK_SIZE);
 
-         /* Pause briefly so people see what's happening. */
-         SDL_Delay (200);
-
          /* Drop down the lines above this one. */
+         SDL_Delay (200);
          drop_field (state, y);
       }
       else
@@ -871,8 +869,10 @@ unsigned int rnd (float max)
 
 int main (int argc, char **argv)
 {
+   SDL_Event junk;
    state_t *state;
    block_t *block;
+   int y;
 
    /* Seed RNG for picking random colors, among other things. */
    srand (time(NULL));
@@ -886,29 +886,31 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050611", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050612", "skf");
+
+   if ((state = malloc (sizeof(state_t))) == NULL)
+   {
+      fprintf (stderr, "Unable to malloc for state struct\n");
+      exit(1);
+   }
+
+   if ((block = malloc (sizeof(block_t))) == NULL)
+   {
+      fprintf (stderr, "Unable to malloc for block struct\n");
+      exit(1);
+   }
+
+   init_surfaces (state);
 
    while (1)
    {
-      if ((state = malloc (sizeof(state_t))) == NULL)
-      {
-         fprintf (stderr, "Unable to malloc for state struct\n");
-         exit(1);
-      }
-
-      if ((block = malloc (sizeof(block_t))) == NULL)
-      {
-         fprintf (stderr, "Unable to malloc for block struct\n");
-         exit(1);
-      }
-
       state->slide_filter = NULL;
 
-      init_surfaces (state);
       block_inits[random_block()](block);
       init_field (state);
       init_screen (state->back);
       init_clock (state);
+      block->draw (block, state->back);
       flip_screen (state->back, state->front);
 
       /* Set up a callback to update the playing field every so often. */
@@ -924,14 +926,18 @@ int main (int argc, char **argv)
 
       event_loop (state, block);
 
-      /* If we get here, we're starting a new game.  Free up everything we
-       * had in use.
-       */
+      /* Time for a new game. */
+      for (y = Y_BLOCKS-1; y >= 0; y--)
+      {
+         drop_field (state, Y_BLOCKS-1);
+         SDL_Delay (25);
+      }
+
       DISABLE_DROP_TIMER (state);
       DISABLE_CLOCK_TIMER (state);
-      SDL_FreeSurface (state->back);
-      SDL_FreeSurface (state->front);
-      free (state);
-      free (block);
+
+      /* We need to clear out the event queue. */
+      while (SDL_PollEvent (&junk))
+         ;
    }
 }
