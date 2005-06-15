@@ -1,4 +1,4 @@
-/* $Id: skf.h,v 1.14 2005/06/01 22:07:04 chris Exp $ */
+/* $Id: skf.h,v 1.15 2005/06/15 02:37:02 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -69,6 +69,7 @@ typedef struct state_t {
    field_t           field;
    filled_t          fills;
    unsigned int      hr, min, sec;
+   unsigned int      lines_cleared;
 } state_t;
 
 /* Returns the best color depth available in bits per pixel. */

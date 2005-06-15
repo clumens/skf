@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.13 2005/06/15 00:48:35 chris Exp $
+# $Id: Makefile,v 1.14 2005/06/15 02:37:01 chris Exp $
 
 include ../Includes.mk
 
 CC = gcc
-CFLAGS = -O2 -Wall `sdl-config --cflags` -g
+CFLAGS = -O2 -Wall `sdl-config --cflags`
 LDFLAGS = `sdl-config --libs` -lSDL_image
 
 OBJS = 4block.o clock.o colors.o draw.o lblock.o plusblock.o sblock.o skf.o \

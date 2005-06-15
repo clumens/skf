@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.42 2005/06/15 00:48:35 chris Exp $ */
+/* $Id: skf.c,v 1.43 2005/06/15 02:37:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -33,6 +33,7 @@
 #define EVT_REMOVED        2     /* we removed lines */
 #define EVT_CLOCK          3     /* update the clock */
 #define EVT_SLIDE_TIMEOUT  4     /* time out for sliding the block */
+#define EVT_OPEN           5     /* open a gap in the middle of the field */
 
 #define DISABLE_DROP_TIMER(state) \
    if ((state)->drop_timer_id != NULL) \
@@ -69,9 +70,11 @@ static void init_surfaces (state_t *state);
 static unsigned int __inline__ line_empty (field_t *field, int line);
 static unsigned int __inline__ line_full (field_t *field, int line);
 static void mark_full_lines (state_t *state, unsigned int min_y);
+static void open_field_gap (state_t *state, block_t *block);
 static unsigned int random_block ();
 static Uint32 random_timer ();
-static void reap_full_lines (state_t *state, unsigned int clear_anyway);
+static void reap_full_lines (state_t *state, block_t *block,
+                             unsigned int clear_anyway);
 static void shift_field_region (state_t *state, int start_x, int end_x,
                                 int direction);
 static void shift_field_left (state_t *state, block_t *block);
@@ -264,7 +267,7 @@ static unsigned int try_position_block (state_t *state, block_t *block)
       /* Try removing all the currently full lines.  Does that
        * give us room for the new block?
        */
-      reap_full_lines (state, 1);
+      reap_full_lines (state, block, 1);
       if (!block->collides (block, state))
          return 1;
 
@@ -370,6 +373,27 @@ static void init_field (state_t *state)
    }
 }
 
+static void open_field_gap (state_t *state, block_t *block)
+{
+   unsigned int y;
+   unsigned int middle = (X_BLOCKS-1)/2;
+
+   block->erase (block, state->back);
+   shift_field_region (state, 1, middle, -1);
+   shift_field_region (state, middle+1, X_BLOCKS-2, 1);
+
+   for (y = 0; y < Y_BLOCKS; y++)
+   {
+      erase_block (state->back, middle, y);
+      erase_block (state->back, middle+1, y);
+      state->field[middle][y] = 0;
+      state->field[middle+1][y] = 0;
+   }
+
+   block->draw (block, state->back);
+   flip_screen (state->back, state->front);
+}
+
 /* Shift the portion of the screen given by [start_x, end_x] by the given
  * number of positions in direction.  Left shifts are negative, right shifts
  * are positive.
@@ -449,9 +473,9 @@ static void shift_field_left (state_t *state, block_t *block)
       n--;
 
       /* Pause briefly again before refreshing to show what we've done. */
-      SDL_Delay (200);
       block->draw (block, state->back);
       flip_screen (state->back, state->front);
+      SDL_Delay (200);
    }
 }
 
@@ -490,9 +514,9 @@ static void shift_field_right (state_t *state, block_t *block)
       n--;
 
       /* Pause briefly again before refreshing to show what we've done. */
-      SDL_Delay (200);
       block->draw (block, state->back);
       flip_screen (state->back, state->front);
+      SDL_Delay (200);
    }
 }
 
@@ -541,10 +565,12 @@ static void mark_full_lines (state_t *state, unsigned int min_y)
    }
 }
 
-static void reap_full_lines (state_t *state, unsigned int clear_anyway)
+static void reap_full_lines (state_t *state, block_t *block,
+                             unsigned int clear_anyway)
 {
    int x, y = Y_BLOCKS-1;
    unsigned int removed_lines = 0;
+   unsigned int do_open = 0;
 
    while (y >= 0)
    {
@@ -562,6 +588,10 @@ static void reap_full_lines (state_t *state, unsigned int clear_anyway)
       if (clear_anyway || rnd(100) <= state->fills[y])
       {
          removed_lines = 1;
+         state->lines_cleared++;
+
+         if (state->lines_cleared % 11 == 0)
+            do_open = 1;
 
          for (x = 0; x < X_BLOCKS; x++)
             x_out_block (state->back, x, y);
@@ -606,8 +636,24 @@ static void reap_full_lines (state_t *state, unsigned int clear_anyway)
                SDL_PushEvent (&evt);
 
             state->drop_timer_id = NULL;
-            return;
+            break;
          }
+      }
+
+      /* If we've cleared out enough lines then open up a gap in the middle
+       * of the playing field.  This appears to help the player, but also
+       * screws up whatever plans they may have had.  This makes things more
+       * fun.
+       */
+      if (do_open)
+      {
+         evt.type = SDL_USEREVENT;
+         evt.user.code = EVT_OPEN;
+         evt.user.data1 = NULL;
+         evt.user.data2 = NULL;
+
+         if (state->slide_filter == NULL || slide_filter (&evt))
+            SDL_PushEvent (&evt);
       }
    }
 }
@@ -685,7 +731,7 @@ static void event_loop (state_t *state, block_t *block)
                   /* Make sure that chunk of the field is in use. */
                   block->lock (block, &state->field);
                   mark_full_lines (state, block->y);
-                  reap_full_lines (state, 0);
+                  reap_full_lines (state, block, 0);
 
                   /* Create a new block. */
                   block_inits[random_block()](block);
@@ -716,6 +762,12 @@ static void event_loop (state_t *state, block_t *block)
 
                case EVT_CLOCK:
                   update_clock (state);
+                  break;
+
+               case EVT_OPEN:
+                  DISABLE_DROP_TIMER (state);
+                  open_field_gap (state, block);
+                  ENABLE_DROP_TIMER (state);
                   break;
             }
 
@@ -762,7 +814,7 @@ static void game_over (state_t *state, end_state_t reason)
       img_surface = load_img ("game_over.png");
 
       rect.x = FIELD_X(B2P(3));
-      rect.y = FIELD_Y(B2P(7));
+      rect.y = FIELD_Y(B2P(8));
 
       SDL_BlitSurface (img_surface, NULL, state->back, &rect);
       SDL_FreeSurface (img_surface);
@@ -943,6 +995,7 @@ int main (int argc, char **argv)
    while (1)
    {
       state->slide_filter = NULL;
+      state->lines_cleared = 0;
 
       block_inits[random_block()](block);
       init_field (state);
