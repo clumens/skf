@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.43 2005/06/15 02:37:01 chris Exp $ */
+/* $Id: skf.c,v 1.44 2005/06/15 03:29:01 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -553,22 +553,31 @@ static unsigned int __inline__ line_full (field_t *field, int line)
 
 static void mark_full_lines (state_t *state, unsigned int min_y)
 {
-   unsigned int y;
+   unsigned int x, y;
 
    /* Give newly filled lines a 20% chance of disappearing on their first time
-    * into the reaper.
+    * into the reaper.  Also draw cracks on all the blocks indicating that yes
+    * the line is full, but we're not doing anything about it yet.
     */
    for (y = min_y; y < Y_BLOCKS; y++)
    {
       if (line_full (&state->field, y))
+      {
          state->fills[y] = 20;
+
+         for (x = 0; x < X_BLOCKS; x++)
+            x_out_block (state->back, x, y);
+
+         flip_region (state->back, state->front, FIELD_X(0), FIELD_Y(B2P(y)),
+                      FIELD_XRES, BLOCK_SIZE);
+      }
    }
 }
 
 static void reap_full_lines (state_t *state, block_t *block,
                              unsigned int clear_anyway)
 {
-   int x, y = Y_BLOCKS-1;
+   int y = Y_BLOCKS-1;
    unsigned int removed_lines = 0;
    unsigned int do_open = 0;
 
@@ -592,12 +601,6 @@ static void reap_full_lines (state_t *state, block_t *block,
 
          if (state->lines_cleared % 11 == 0)
             do_open = 1;
-
-         for (x = 0; x < X_BLOCKS; x++)
-            x_out_block (state->back, x, y);
-
-         flip_region (state->back, state->front, FIELD_X(0), FIELD_Y(B2P(y)),
-                      FIELD_XRES, BLOCK_SIZE);
 
          /* Drop down the lines above this one. */
          SDL_Delay (200);

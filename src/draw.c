@@ -1,4 +1,4 @@
-/* $Id: draw.c,v 1.20 2005/06/13 02:34:32 chris Exp $ */
+/* $Id: draw.c,v 1.21 2005/06/15 03:29:00 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -47,6 +47,7 @@ static Uint32 (*get_pixel) (SDL_Surface *screen, Uint32 x, Uint32 y);
 
 /* Images for each color of block we support. */
 SDL_Surface *blue_img, *green_img, *orange_img, *red_img;
+SDL_Surface *cracks_img;
 
 /* +=====================================================================+
  * | PRIVATE FUNCTIONS                                                   |
@@ -311,6 +312,8 @@ void init_screen (SDL_Surface *screen)
    green_img = load_img ("green_block.png");
    orange_img = load_img ("orange_block.png");
    red_img = load_img ("red_block.png");
+
+   cracks_img = load_img ("cracks.png");
 }
 
 SDL_Surface *load_img (const char *img)
@@ -360,24 +363,12 @@ SDL_Surface *save_region (SDL_Surface *src, Uint32 base_x, Uint32 base_y,
    }
 }
 
-void x_out_block (SDL_Surface *screen, int base_x, int base_y)
+void x_out_block (SDL_Surface *screen, int x, int y)
 {
-   Uint32 i;
-
-   Uint32 px_x = B2P(base_x);
-   Uint32 px_y = B2P(base_y);
+   SDL_Rect r = { FIELD_X(B2P(x)), FIELD_Y(B2P(y)), BLOCK_SIZE, BLOCK_SIZE };
 
    LOCK(screen);
-
-   for (i = 0; i < BLOCK_SIZE; i++)
-      draw_pixel (screen, WHITE, FIELD_X(px_x+i), FIELD_Y(px_y+i));
-
-   for (i = 0; i < BLOCK_SIZE; i++)
-      draw_pixel (screen, WHITE, FIELD_X(px_x+i), FIELD_Y(px_y+BLOCK_SIZE-i));
-
+   SDL_BlitSurface (cracks_img, NULL, screen, &r);
    UNLOCK(screen);
-
-   /* Update the rectangular region we just drew. */
-   SDL_UpdateRect (screen, FIELD_X(px_x), FIELD_Y(px_y), BLOCK_SIZE,
-                   BLOCK_SIZE);
+   SDL_UpdateRect (screen, r.x, r.y, BLOCK_SIZE, BLOCK_SIZE);
 }
