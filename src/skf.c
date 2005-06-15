@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.41 2005/06/13 03:06:34 chris Exp $ */
+/* $Id: skf.c,v 1.42 2005/06/15 00:48:35 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -72,7 +72,10 @@ static void mark_full_lines (state_t *state, unsigned int min_y);
 static unsigned int random_block ();
 static Uint32 random_timer ();
 static void reap_full_lines (state_t *state, unsigned int clear_anyway);
+static void shift_field_region (state_t *state, int start_x, int end_x,
+                                int direction);
 static void shift_field_left (state_t *state, block_t *block);
+static void shift_field_right (state_t *state, block_t *block);
 static int slide_filter (const SDL_Event *evt);
 static unsigned int try_position_block (state_t *state, block_t *block);
 static void update_block (state_t *state, block_t *block);
@@ -367,6 +370,46 @@ static void init_field (state_t *state)
    }
 }
 
+/* Shift the portion of the screen given by [start_x, end_x] by the given
+ * number of positions in direction.  Left shifts are negative, right shifts
+ * are positive.
+ */
+static void shift_field_region (state_t *state, int start_x, int end_x,
+                                int direction)
+{
+   SDL_Surface *save_surface;
+   SDL_Rect rect;
+   int x, y;
+
+   /* First just copy the locked field information one column at a time. */
+   if (direction < 0)
+   {
+      for (x = start_x; x <= end_x; x++)
+      {
+         for (y = 0; y < Y_BLOCKS; y++)
+            state->field[x+direction][y] = state->field[x][y];
+      }
+   }
+   else
+   {
+      for (x = end_x; x >= start_x; x--)
+      {
+         for (y = 0; y < Y_BLOCKS; y++)
+            state->field[x+direction][y] = state->field[x][y];
+      }
+   }
+
+   save_surface = save_region (state->back, FIELD_X(B2P(start_x)), FIELD_Y(0),
+                               (end_x+1-start_x)*BLOCK_SIZE, FIELD_YRES);
+
+   /* Now copy the graphics data over by one position. */
+   rect.x = FIELD_X(B2P(start_x+direction));
+   rect.y = FIELD_Y(0);
+
+   SDL_BlitSurface (save_surface, NULL, state->back, &rect);
+   SDL_FreeSurface (save_surface);
+}
+
 /* Shift the playing field to the left by a random number of positions.  The
  * items on the leftmost column will be wrapped around to the right side.  This
  * is used when a line is deleted and we want to make things more interesting.
@@ -377,10 +420,10 @@ static void shift_field_left (state_t *state, block_t *block)
 
    while (n > 0)
    {
-      SDL_Surface *col_surface, *blk_surface;
+      SDL_Surface *col_surface;
       SDL_Rect rect;
       int tmp[Y_BLOCKS];
-      unsigned int y, x;
+      unsigned int y;
 
       /* Erase the block from the back surface so it doesn't get copied over. */
       block->erase (block, state->back);
@@ -391,34 +434,14 @@ static void shift_field_left (state_t *state, block_t *block)
       for (y = 0; y < Y_BLOCKS; y++)
          tmp[y] = state->field[0][y];
 
-      /* First, just copy the locked field information over one column at
-       * a time.
-       */
-      for (x = 0; x < X_BLOCKS-1; x++)
-      {
-         for (y = 0; y < Y_BLOCKS; y++)
-            state->field[x][y] = state->field[x+1][y];
-      }
-
-      /* Now copy the graphics data left by one position. */
-      rect.x = FIELD_X(0);
-      rect.y = FIELD_Y(0);
-      rect.w = FIELD_XRES-BLOCK_SIZE;
-      rect.h = FIELD_YRES;
-
-      blk_surface = save_region (state->back, FIELD_X(BLOCK_SIZE), FIELD_Y(0),
-                                 FIELD_XRES-BLOCK_SIZE, FIELD_YRES);
-      SDL_BlitSurface (blk_surface, NULL, state->back, &rect);
-      SDL_FreeSurface (blk_surface);
+      shift_field_region (state, 1, X_BLOCKS-1, -1);
 
       /* Paste the saved column into the rightmost position. */
       for (y = 0; y < Y_BLOCKS; y++)
          state->field[X_BLOCKS-1][y] = tmp[y];
 
       rect.x = FIELD_X(FIELD_XRES-BLOCK_SIZE);
-      rect.y = FIELD_Y(0);
-      rect.w = BLOCK_SIZE;
-      rect.h = FIELD_YRES;
+      rect.y = FIELD_YOFFSET;
 
       SDL_BlitSurface (col_surface, NULL, state->back, &rect);
       SDL_FreeSurface (col_surface);
@@ -426,9 +449,50 @@ static void shift_field_left (state_t *state, block_t *block)
       n--;
 
       /* Pause briefly again before refreshing to show what we've done. */
+      SDL_Delay (200);
       block->draw (block, state->back);
       flip_screen (state->back, state->front);
+   }
+}
+
+static void shift_field_right (state_t *state, block_t *block)
+{
+   unsigned int n = rnd(3);
+
+   while (n > 0)
+   {
+      SDL_Surface *col_surface;
+      SDL_Rect rect;
+      int tmp[Y_BLOCKS];
+      unsigned int y;
+
+      /* Erase the block from the back surface so it doesn't get copied over. */
+      block->erase (block, state->back);
+
+      /* Make a copy of the rightmost column. */
+      col_surface = save_region (state->back, FIELD_X(B2P(X_BLOCKS-1)),
+                                 FIELD_YOFFSET, BLOCK_SIZE, FIELD_YRES);
+      for (y = 0; y < Y_BLOCKS; y++)
+         tmp[y] = state->field[X_BLOCKS-1][y];
+
+      shift_field_region (state, 0, X_BLOCKS-2, 1);
+
+      /* Paste the saved column into the leftmost position. */
+      for (y = 0; y < Y_BLOCKS; y++)
+         state->field[0][y] = tmp[y];
+
+      rect.x = FIELD_XOFFSET;
+      rect.y = FIELD_YOFFSET;
+
+      SDL_BlitSurface (col_surface, NULL, state->back, &rect);
+      SDL_FreeSurface (col_surface);
+
+      n--;
+
+      /* Pause briefly again before refreshing to show what we've done. */
       SDL_Delay (200);
+      block->draw (block, state->back);
+      flip_screen (state->back, state->front);
    }
 }
 
@@ -643,7 +707,10 @@ static void event_loop (state_t *state, block_t *block)
 
                case EVT_REMOVED:
                   DISABLE_DROP_TIMER (state);
-                  shift_field_left (state, block);
+                  if (rnd(10) % 2 == 0)
+                     shift_field_left (state, block);
+                  else
+                     shift_field_right (state, block);
                   ENABLE_DROP_TIMER (state);
                   break;
 
@@ -857,7 +924,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050612", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050614", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
