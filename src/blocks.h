@@ -1,4 +1,4 @@
-/* $Id: blocks.h,v 1.6 2005/06/13 02:47:51 chris Exp $ */
+/* $Id: blocks.h,v 1.7 2005/06/17 01:57:45 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -38,6 +38,7 @@ typedef struct block_t {
    unsigned int (* landed)(struct block_t *block, state_t *state);
    void (* lock)(struct block_t *block, field_t *field);
    unsigned int (* may_move_sideways)(struct block_t *block);
+   unsigned int (* perturb)(unsigned int n);
    void (* rotate)(enum dir_t direction, struct block_t *block, state_t *state);
 } block_t;
 

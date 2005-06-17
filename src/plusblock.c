@@ -1,4 +1,4 @@
-/* $Id: plusblock.c,v 1.4 2005/06/13 02:47:51 chris Exp $ */
+/* $Id: plusblock.c,v 1.5 2005/06/17 01:57:45 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -89,6 +89,11 @@ static unsigned int move_sideways_plusblock (block_t *block)
           block->x+block->width+block->dx <= X_BLOCKS;
 }
 
+static unsigned int perturb_plusblock (unsigned int n)
+{
+   return (n << 3) | 19;
+}
+
 /* +=====================================================================+
  * | PUBLIC FUNCTIONS                                                    |
  * +=====================================================================+
@@ -110,4 +115,5 @@ void init_plusblock (block_t *block)
    block->lock = lock_region_plusblock;
    block->may_move_sideways = move_sideways_plusblock;
    block->rotate = NULL;
+   block->perturb = perturb_plusblock;
 }

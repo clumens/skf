@@ -1,4 +1,4 @@
-/* $Id: lblock.c,v 1.3 2005/06/13 02:47:51 chris Exp $ */
+/* $Id: lblock.c,v 1.4 2005/06/17 01:57:45 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -306,6 +306,11 @@ static void rotate (dir_t direction, block_t *block, state_t *state)
    }
 }
 
+static unsigned int perturb_lblock (unsigned int n)
+{
+   return (n % 1744)+5;
+}
+
 /* +=====================================================================+
  * | PUBLIC FUNCTIONS                                                    |
  * +=====================================================================+
@@ -328,4 +333,5 @@ void init_lblock (block_t *block)
    block->lock = lock_region_lblock;
    block->may_move_sideways = move_sideways_lblock;
    block->rotate = rotate;
+   block->perturb = perturb_lblock;
 }

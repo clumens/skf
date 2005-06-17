@@ -1,4 +1,4 @@
-/* $Id: ublock.c,v 1.3 2005/06/13 02:47:52 chris Exp $ */
+/* $Id: ublock.c,v 1.4 2005/06/17 01:57:45 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -322,6 +322,16 @@ static void rotate (dir_t direction, block_t *block, state_t *state)
    }
 }
 
+static unsigned int perturb_ublock (unsigned int n)
+{
+   unsigned int tmp = n / 3;
+
+   if (tmp < 15)
+      return n+2;
+   else
+      return tmp;
+}
+
 /* +=====================================================================+
  * | PUBLIC FUNCTIONS                                                    |
  * +=====================================================================+
@@ -344,4 +354,5 @@ void init_ublock (block_t *block)
    block->lock = lock_region_ublock;
    block->may_move_sideways = move_sideways_ublock;
    block->rotate = rotate;
+   block->perturb = perturb_ublock;
 }

@@ -1,4 +1,4 @@
-/* $Id: 4block.c,v 1.8 2005/06/13 02:47:51 chris Exp $ */
+/* $Id: 4block.c,v 1.9 2005/06/17 01:57:45 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -81,6 +81,11 @@ static unsigned int move_sideways_4block (block_t *block)
    return block->x+block->dx >= 0 && block->x+block->dx <= X_BLOCKS-2;
 }
 
+static unsigned int perturb_4block (unsigned int n)
+{
+   return n*2;
+}
+
 /* +=====================================================================+
  * | PUBLIC FUNCTIONS                                                    |
  * +=====================================================================+
@@ -102,4 +107,5 @@ void init_4block (block_t *block)
    block->lock = lock_region_4block;
    block->may_move_sideways = move_sideways_4block;
    block->rotate = NULL;
+   block->perturb = perturb_4block;
 }

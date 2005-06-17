@@ -1,4 +1,4 @@
-/* $Id: skf.c,v 1.44 2005/06/15 03:29:01 chris Exp $ */
+/* $Id: skf.c,v 1.45 2005/06/17 01:57:45 chris Exp $ */
 
 /* skf - shit keeps falling
  * Copyright (C) 2005 Chris Lumens
@@ -80,6 +80,7 @@ static void shift_field_region (state_t *state, int start_x, int end_x,
 static void shift_field_left (state_t *state, block_t *block);
 static void shift_field_right (state_t *state, block_t *block);
 static int slide_filter (const SDL_Event *evt);
+static void transpose_cols (state_t *state, block_t *block, int col1, int col2);
 static unsigned int try_position_block (state_t *state, block_t *block);
 static void update_block (state_t *state, block_t *block);
 
@@ -521,6 +522,54 @@ static void shift_field_right (state_t *state, block_t *block)
 }
 
 /* +================================================================+
+ * | COLUMN MANIPULATION FUNCTIONS                                  |
+ * +================================================================+
+ */
+
+/* Swap the contents of two columns. */
+static void transpose_cols (state_t *state, block_t *block, int col1, int col2)
+{
+   unsigned int y, tmp;
+   SDL_Surface *col1_surface, *col2_surface;
+   SDL_Rect r;
+
+   if (col1 == col2)
+      return;
+
+   /* Swap field locking information. */
+   for (y = 0; y < Y_BLOCKS; y++)
+   {
+      tmp = state->field[col1][y];
+      state->field[col1][y] = state->field[col2][y];
+      state->field[col2][y] = tmp;
+   }
+
+   /* Erase the block from the back surface so it doesn't get copied over. */
+   block->erase (block, state->back);
+
+   /* Make a copy of each column so pasting is simpler. */
+   col1_surface = save_region (state->back, FIELD_X(B2P(col1)), FIELD_YOFFSET,
+                               BLOCK_SIZE, FIELD_YRES);
+   col2_surface = save_region (state->back, FIELD_X(B2P(col2)), FIELD_YOFFSET,
+                               BLOCK_SIZE, FIELD_YRES);
+
+   /* Paste col2 into col1's place. */
+   r.x = FIELD_X(B2P(col2));
+   r.y = FIELD_YOFFSET;
+   SDL_BlitSurface (col1_surface, NULL, state->back, &r);
+
+   /* Return the favor. */
+   r.x = FIELD_X(B2P(col1));
+   r.y = FIELD_YOFFSET;
+   SDL_BlitSurface (col2_surface, NULL, state->back, &r);
+
+   block->draw (block, state->back);
+   flip_screen (state->back, state->front);
+
+   state->transpose_num = 0;
+}
+
+/* +================================================================+
  * | ROW MANIPULATION FUNCTIONS                                     |
  * +================================================================+
  */
@@ -738,6 +787,7 @@ static void event_loop (state_t *state, block_t *block)
 
                   /* Create a new block. */
                   block_inits[random_block()](block);
+                  state->transpose_num = block->perturb(state->transpose_num);
 
                   if (!try_position_block (state, block))
                   {
@@ -760,6 +810,10 @@ static void event_loop (state_t *state, block_t *block)
                      shift_field_left (state, block);
                   else
                      shift_field_right (state, block);
+
+                  if (state->transpose_num > 50000 || state->transpose_num < 34)
+                     transpose_cols (state, block, rnd(X_BLOCKS-1),
+                                     rnd(X_BLOCKS-1));
                   ENABLE_DROP_TIMER (state);
                   break;
 
@@ -979,7 +1033,7 @@ int main (int argc, char **argv)
    atexit (SDL_Quit);
 
    if (have_wm())
-      SDL_WM_SetCaption("shit keeps falling - v.20050614", "skf");
+      SDL_WM_SetCaption("shit keeps falling - v.20050616", "skf");
 
    if ((state = malloc (sizeof(state_t))) == NULL)
    {
@@ -999,8 +1053,10 @@ int main (int argc, char **argv)
    {
       state->slide_filter = NULL;
       state->lines_cleared = 0;
+      state->transpose_num = 0;
 
       block_inits[random_block()](block);
+      state->transpose_num = block->perturb (state->transpose_num);
       init_field (state);
       init_screen (state->back);
       init_clock (state);
